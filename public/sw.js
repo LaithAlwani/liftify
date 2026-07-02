@@ -1,7 +1,7 @@
 // Liftify service worker — enables install + fast loads.
 // Liftify is online-first (auth + Convex realtime), so this only caches the app
 // shell and immutable static assets. Everything else passes straight through.
-const CACHE = "liftify-v6";
+const CACHE = "liftify-v7";
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
@@ -38,19 +38,38 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  // Cache-first ONLY for immutable static assets. Everything else (RSC, data,
-  // dynamic routes) is left untouched so we never break a live request.
-  const isStatic =
-    url.pathname.startsWith("/_next/static/") ||
-    /\.(?:js|css|woff2?|png|jpe?g|svg|webp|avif|ico|webmanifest)$/.test(
-      url.pathname,
-    );
-  if (!isStatic) return;
+  // Fingerprinted build assets are immutable — safe to serve cache-first
+  // forever. Their filenames change on every deploy, so they never go stale.
+  const isImmutable = url.pathname.startsWith("/_next/static/");
 
-  event.respondWith(
-    caches.match(req).then((cached) => {
-      if (cached) return cached;
-      return fetch(req)
+  // Brand + manifest files (icons, logo, splash, manifest) live at STABLE
+  // paths, so cache-first would pin an old icon across a rebrand — exactly the
+  // bug where the install prompt / "app installed" toast kept the old logo.
+  // Serve these network-first (revalidate online, fall back to cache offline).
+  const isBrandAsset =
+    /\.(?:png|jpe?g|svg|webp|avif|ico|webmanifest)$/.test(url.pathname);
+
+  if (isImmutable) {
+    event.respondWith(
+      caches.match(req).then((cached) => {
+        if (cached) return cached;
+        return fetch(req)
+          .then((res) => {
+            if (res.ok && res.type === "basic") {
+              const copy = res.clone();
+              caches.open(CACHE).then((cache) => cache.put(req, copy));
+            }
+            return res;
+          })
+          .catch(() => cached || Response.error());
+      }),
+    );
+    return;
+  }
+
+  if (isBrandAsset) {
+    event.respondWith(
+      fetch(req)
         .then((res) => {
           if (res.ok && res.type === "basic") {
             const copy = res.clone();
@@ -58,9 +77,13 @@ self.addEventListener("fetch", (event) => {
           }
           return res;
         })
-        .catch(() => cached || Response.error());
-    }),
-  );
+        .catch(() => caches.match(req).then((cached) => cached || Response.error())),
+    );
+    return;
+  }
+
+  // Everything else (RSC, data, dynamic routes) passes straight through so we
+  // never break a live request.
 });
 
 // ---- Web Push ----
