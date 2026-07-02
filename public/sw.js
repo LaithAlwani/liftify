@@ -1,7 +1,7 @@
 // Liftify service worker — enables install + fast loads.
 // Liftify is online-first (auth + Convex realtime), so this only caches the app
 // shell and immutable static assets. Everything else passes straight through.
-const CACHE = "liftify-v7";
+const CACHE = "liftify-v8";
 
 self.addEventListener("install", (event) => {
   event.waitUntil(

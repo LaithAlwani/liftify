@@ -40,7 +40,9 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#0a0a0c",
+  // Match the app's nav bars (surface-2) so the mobile status/navigation bars
+  // blend with the top header and bottom tab bar instead of showing white.
+  themeColor: "#0c0c0e",
   width: "device-width",
   initialScale: 1,
   viewportFit: "cover",
