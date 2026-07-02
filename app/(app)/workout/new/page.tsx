@@ -261,6 +261,12 @@ function LogWorkout() {
   const started = timer !== null; // the session clock has been started
 
   function startWorkout() {
+    // Can't start an empty session — nudge the user to add an exercise first.
+    if (entries.length === 0) {
+      setError("Add at least one exercise before you start the workout.");
+      return;
+    }
+    setError(null);
     setTimer({ base: 0, runningSince: Date.now() });
     // Open the first exercise's sets and scroll to it.
     const first = entries[0];
@@ -373,6 +379,7 @@ function LogWorkout() {
   }, [scrollTarget]);
 
   function addExercise(exName: string) {
+    setError(null); // clear the "add an exercise" note once they add one
     const existing = entries.find(
       (e) => e.name.toLowerCase() === exName.toLowerCase(),
     );
@@ -644,6 +651,9 @@ function LogWorkout() {
     : !started
       ? entries.length === 0
       : saving || entries.length === 0;
+  // Before the session starts (new workout only), the primary action uses the
+  // loud "hero" CTA — same treatment as the home page start button.
+  const showStartHero = !isEditing && !started;
 
   return (
     <div className="flex min-h-full flex-col md:flex-row">
@@ -1101,24 +1111,31 @@ function LogWorkout() {
 
           {/* Mobile action bar: primary action + discard (desktop uses rail) */}
           <div className="mt-2 flex flex-col gap-3 md:hidden">
-            <button
-              type="button"
-              onClick={primaryAction}
-              disabled={primaryDisabled}
-              className={finishBarStyles}
-            >
-              <PrimaryIcon
-                weight={PrimaryIcon === Play ? "fill" : "bold"}
-                className="size-5"
-              />
-              {primaryLabel}
-            </button>
-            {!isEditing && (
+            {showStartHero ? (
+              // Kept clickable even with no exercises, so the tap surfaces the
+              // "add at least one exercise" note instead of doing nothing.
+              <StartWorkoutHero onClick={startWorkout} size="mobile" />
+            ) : (
+              <button
+                type="button"
+                onClick={primaryAction}
+                disabled={primaryDisabled}
+                className={finishBarStyles}
+              >
+                <PrimaryIcon
+                  weight={PrimaryIcon === Play ? "fill" : "bold"}
+                  className="size-5"
+                />
+                {primaryLabel}
+              </button>
+            )}
+            {/* Discard only appears once the session has started. */}
+            {!isEditing && started && (
               <button
                 type="button"
                 onClick={() => setDiscardOpen(true)}
                 disabled={saving}
-                className="flex items-center justify-center gap-1.5 self-center rounded-xl px-4 py-2 text-sm font-medium text-red-500 transition-colors hover:bg-red-500/10 disabled:opacity-50"
+                className="flex w-full items-center justify-center gap-1.5 rounded-xl border border-red-500/30 px-4 py-3 text-sm font-medium text-red-500 transition-colors hover:bg-red-500/10 disabled:opacity-50"
               >
                 <Trash weight="bold" className="size-4" />
                 Discard workout
@@ -1183,24 +1200,30 @@ function LogWorkout() {
         </button>
 
         <div className="mt-auto flex flex-col gap-3">
-          <button
-            type="button"
-            onClick={primaryAction}
-            disabled={primaryDisabled}
-            className={`${finishBarStyles} text-base`}
-          >
-            <PrimaryIcon
-              weight={PrimaryIcon === Play ? "fill" : "bold"}
-              className="size-5"
-            />
-            {primaryLabel}
-          </button>
-          {!isEditing && (
+          {showStartHero ? (
+            // Clickable even when empty so the tap shows the "add an exercise" note.
+            <StartWorkoutHero onClick={startWorkout} size="compact" />
+          ) : (
+            <button
+              type="button"
+              onClick={primaryAction}
+              disabled={primaryDisabled}
+              className={`${finishBarStyles} text-base`}
+            >
+              <PrimaryIcon
+                weight={PrimaryIcon === Play ? "fill" : "bold"}
+                className="size-5"
+              />
+              {primaryLabel}
+            </button>
+          )}
+          {/* Discard only appears once the session has started. */}
+          {!isEditing && started && (
             <button
               type="button"
               onClick={() => setDiscardOpen(true)}
               disabled={saving}
-              className="flex items-center justify-center gap-1.5 self-center rounded-xl px-4 py-2 text-sm font-medium text-red-500 transition-colors hover:bg-red-500/10 disabled:opacity-50"
+              className="flex w-full items-center justify-center gap-1.5 rounded-xl border border-red-500/30 px-4 py-3 text-sm font-medium text-red-500 transition-colors hover:bg-red-500/10 disabled:opacity-50"
             >
               <Trash weight="bold" className="size-4" />
               Discard
@@ -1582,6 +1605,67 @@ function LogWorkout() {
         </div>
       )}
     </div>
+  );
+}
+
+// The loud accent "start workout" CTA — the same hero treatment as the home
+// page start button. `mobile` is the big full-bleed panel; `compact` is the
+// narrower version sized for the desktop session rail.
+const heroHatchStyle = {
+  background:
+    "repeating-linear-gradient(-45deg, rgba(10,10,11,.14) 0 8px, transparent 8px 16px)",
+};
+
+function StartWorkoutHero({
+  onClick,
+  disabled,
+  size,
+}: {
+  onClick: () => void;
+  disabled?: boolean;
+  size: "mobile" | "compact";
+}) {
+  const isMobile = size === "mobile";
+  const wrapStyles =
+    "relative flex w-full items-center justify-between overflow-hidden rounded-[20px] " +
+    "bg-accent text-accent-foreground transition hover:brightness-105 " +
+    "disabled:pointer-events-none disabled:opacity-50";
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      aria-label="Start workout"
+      className={`${wrapStyles} ${isMobile ? "p-7" : "p-5"}`}
+    >
+      <span
+        style={heroHatchStyle}
+        className={`pointer-events-none absolute inset-y-0 right-0 ${
+          isMobile ? "w-[70px]" : "w-[60px]"
+        }`}
+      />
+      <span className="relative text-left">
+        <span className="mono-label text-[10px] font-semibold opacity-70">
+          READY WHEN YOU ARE
+        </span>
+        <span
+          className={`mt-1 block font-display font-black italic uppercase leading-none tracking-tight ${
+            isMobile ? "text-3xl" : "text-2xl"
+          }`}
+        >
+          START
+          <br />
+          WORKOUT
+        </span>
+      </span>
+      <span
+        className={`relative flex items-center justify-center rounded-full bg-accent-foreground text-accent ${
+          isMobile ? "size-14" : "size-11"
+        }`}
+      >
+        <Play weight="fill" className={`ml-0.5 ${isMobile ? "size-6" : "size-5"}`} />
+      </span>
+    </button>
   );
 }
 
