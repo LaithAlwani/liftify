@@ -12,6 +12,7 @@ import {
   Scales,
   ChartLineUp,
   Storefront,
+  Cards,
   Heart,
   type Icon,
 } from "@phosphor-icons/react";
@@ -23,15 +24,26 @@ const DONATE_URL =
 
 // Nav items are data so they are easy to edit. `label` shows on desktop,
 // `short` shows in the mobile tab bar (matching the design's terse caps).
-type NavItem = { href: string; label: string; short: string; icon: Icon };
+// `desktopOnly` items appear only in the sidebar — the mobile tab bar is full
+// at 5 items, so those are reached from the Home page instead.
+type NavItem = {
+  href: string;
+  label: string;
+  short: string;
+  icon: Icon;
+  desktopOnly?: boolean;
+};
 
 const NAV_ITEMS: NavItem[] = [
   { href: "/", label: "Home", short: "HOME", icon: House },
   { href: "/workout/new", label: "Log", short: "LOG", icon: Barbell },
+  { href: "/templates", label: "Templates", short: "PLANS", icon: Cards, desktopOnly: true },
   { href: "/body", label: "Body", short: "BODY", icon: Scales },
   { href: "/progress", label: "Progress", short: "PROGRESS", icon: ChartLineUp },
   { href: "/shop", label: "Shop", short: "SHOP", icon: Storefront },
 ];
+
+const MOBILE_NAV_ITEMS = NAV_ITEMS.filter((item) => !item.desktopOnly);
 
 function isActive(pathname: string, href: string) {
   return href === "/" ? pathname === "/" : pathname.startsWith(href);
@@ -94,6 +106,19 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   const settingsActive = pathname.startsWith("/settings");
 
+  // The user's photo (or their initial) — reused in the sidebar row and the
+  // mobile top bar.
+  const avatarCircle = user?.imageUrl ? (
+    <span className="size-8 overflow-hidden rounded-full">
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src={user.imageUrl} alt="" className="size-full object-cover" />
+    </span>
+  ) : (
+    <span className="flex size-8 items-center justify-center rounded-full bg-accent font-display text-sm font-black text-accent-foreground">
+      {initial}
+    </span>
+  );
+
   const accountRow = (
     <Link
       href="/settings"
@@ -101,16 +126,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         settingsActive ? "bg-accent/10" : "bg-card hover:bg-muted"
       }`}
     >
-      {user?.imageUrl ? (
-        <span className="size-8 overflow-hidden rounded-full">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={user.imageUrl} alt="" className="size-full object-cover" />
-        </span>
-      ) : (
-        <span className="flex size-8 items-center justify-center rounded-full bg-accent font-display text-sm font-black text-accent-foreground">
-          {initial}
-        </span>
-      )}
+      {avatarCircle}
       <span className="min-w-0">
         <span className="block truncate text-sm font-semibold">
           {user?.firstName ?? "Account"}
@@ -160,14 +176,28 @@ export function AppShell({ children }: { children: ReactNode }) {
           {accountRow}
         </aside>
 
-        <main className="flex-1 pt-[env(safe-area-inset-top)] pb-24 md:pt-0 md:pb-12">
-          {children}
-        </main>
+        {/* Mobile top bar — support, notifications, account (desktop uses the sidebar) */}
+        <header className="sticky top-0 z-40 flex items-center justify-between border-b border-border bg-surface-2 px-4 pb-2.5 pt-[max(0.625rem,env(safe-area-inset-top))] md:hidden">
+          <LiftifyWordmark size="sm" />
+          <div className="flex items-center gap-0.5">
+            <DonateButton />
+            <NotificationBell />
+            <Link
+              href="/settings"
+              aria-label="Account and settings"
+              className="ml-1 flex items-center"
+            >
+              {avatarCircle}
+            </Link>
+          </div>
+        </header>
+
+        <main className="flex-1 pb-24 md:pb-12">{children}</main>
 
         {/* Mobile bottom tab bar */}
         <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-surface-2 md:hidden">
           <div className="mx-auto flex max-w-md items-stretch justify-around pb-[max(1rem,env(safe-area-inset-bottom))] pt-2.5">
-            {NAV_ITEMS.map((item) => {
+            {MOBILE_NAV_ITEMS.map((item) => {
               const active = isActive(pathname, item.href);
               const Ico = item.icon;
               return (

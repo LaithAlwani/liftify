@@ -18,6 +18,7 @@ import type * as model from "../model.js";
 import type * as notifications from "../notifications.js";
 import type * as push from "../push.js";
 import type * as pushSender from "../pushSender.js";
+import type * as templates from "../templates.js";
 import type * as users from "../users.js";
 import type * as workouts from "../workouts.js";
 
@@ -38,6 +39,7 @@ declare const fullApi: ApiFromModules<{
   notifications: typeof notifications;
   push: typeof push;
   pushSender: typeof pushSender;
+  templates: typeof templates;
   users: typeof users;
   workouts: typeof workouts;
 }>;

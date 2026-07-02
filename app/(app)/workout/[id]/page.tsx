@@ -10,6 +10,7 @@ import {
   ArrowsClockwise,
   Barbell,
   CaretLeft,
+  Cards,
   ChartBar,
   PencilSimple,
   Stack,
@@ -49,11 +50,42 @@ export default function WorkoutDetailPage() {
     workoutId: id as Id<"workouts">,
   });
   const remove = useMutation(api.workouts.remove);
+  const createTemplate = useMutation(api.templates.create);
 
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  // "Save as template" modal state.
+  const [saveOpen, setSaveOpen] = useState(false);
+  const [templateName, setTemplateName] = useState("");
+  const [savingTemplate, setSavingTemplate] = useState(false);
+  const [templateError, setTemplateError] = useState<string | null>(null);
 
   const unit = me?.units ?? "lb";
+
+  function openSaveAsTemplate() {
+    if (!workout) return;
+    setTemplateName(workout.name);
+    setTemplateError(null);
+    setSaveOpen(true);
+  }
+  async function handleSaveAsTemplate() {
+    if (!workout) return;
+    setTemplateError(null);
+    setSavingTemplate(true);
+    try {
+      await createTemplate({
+        name: templateName,
+        exercises: workout.exercises,
+      });
+      setSaveOpen(false);
+      router.push("/templates");
+    } catch (e) {
+      setTemplateError(
+        e instanceof Error ? e.message : "Could not save template.",
+      );
+      setSavingTemplate(false);
+    }
+  }
 
   async function handleDelete() {
     setDeleting(true);
@@ -147,13 +179,23 @@ export default function WorkoutDetailPage() {
         </div>
       </div>
 
-      <Link
-        href={`/workout/new?repeat=${workout._id}`}
-        className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-[14px] bg-accent font-display font-black italic text-accent-foreground transition-[filter] hover:brightness-105 active:translate-y-px"
-      >
-        <ArrowsClockwise weight="bold" className="size-5" />
-        REPEAT THIS WORKOUT
-      </Link>
+      <div className="flex flex-col gap-2 sm:flex-row">
+        <Link
+          href={`/workout/new?repeat=${workout._id}`}
+          className="inline-flex h-12 flex-1 items-center justify-center gap-2 rounded-[14px] bg-accent font-display font-black italic text-accent-foreground transition-[filter] hover:brightness-105 active:translate-y-px"
+        >
+          <ArrowsClockwise weight="bold" className="size-5" />
+          REPEAT THIS WORKOUT
+        </Link>
+        <button
+          type="button"
+          onClick={openSaveAsTemplate}
+          className="inline-flex h-12 items-center justify-center gap-2 rounded-[14px] border border-border-strong px-5 font-display font-black italic tracking-tight text-bright transition-colors hover:border-accent/40 hover:text-accent"
+        >
+          <Cards weight="bold" className="size-5" />
+          SAVE AS TEMPLATE
+        </button>
+      </div>
 
       <div className="grid grid-cols-3 gap-3">
         <StatCard
@@ -228,6 +270,57 @@ export default function WorkoutDetailPage() {
               </Button>
               <Button variant="danger" onClick={handleDelete} disabled={deleting}>
                 {deleting ? "Deleting…" : "Delete"}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Save as template */}
+      {saveOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 p-4 sm:items-center"
+          onClick={() => !savingTemplate && setSaveOpen(false)}
+          role="dialog"
+          aria-modal="true"
+        >
+          <div
+            className="w-full max-w-sm rounded-[16px] border border-border-strong bg-card p-6 shadow-xl"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="flex items-center gap-2 text-accent">
+              <Cards weight="fill" className="size-5" />
+              <h2 className="font-display text-lg font-black">
+                Save as template
+              </h2>
+            </div>
+            <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+              Reuse these {workout.exercises.length} exercise
+              {workout.exercises.length === 1 ? "" : "s"} to start a workout fast.
+            </p>
+            <input
+              value={templateName}
+              onChange={(event) => setTemplateName(event.target.value)}
+              aria-label="Template name"
+              placeholder="Template name"
+              className="mt-4 h-11 w-full rounded-xl border border-border bg-background px-3 text-base text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            />
+            {templateError && (
+              <p className="mt-3 text-sm text-red-500">{templateError}</p>
+            )}
+            <div className="mt-6 flex justify-end gap-2">
+              <Button
+                variant="secondary"
+                onClick={() => setSaveOpen(false)}
+                disabled={savingTemplate}
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={handleSaveAsTemplate}
+                disabled={savingTemplate || templateName.trim().length === 0}
+              >
+                {savingTemplate ? "Saving…" : "Save template"}
               </Button>
             </div>
           </div>

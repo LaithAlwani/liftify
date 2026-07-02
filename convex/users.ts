@@ -217,6 +217,12 @@ export const deleteAccount = mutation({
       .collect();
     for (const n of notes) await ctx.db.delete(n._id);
 
+    const templates = await ctx.db
+      .query("templates")
+      .withIndex("by_user", (q) => q.eq("userId", user._id))
+      .collect();
+    for (const template of templates) await ctx.db.delete(template._id);
+
     await ctx.db.delete(user._id);
   },
 });

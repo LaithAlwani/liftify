@@ -71,6 +71,26 @@ export default defineSchema({
     ),
   }).index("by_user_date", ["userId", "date"]),
 
+  // Reusable workout templates — a named list of exercises with target sets/reps
+  // (e.g. "Leg Day"). Capped at 5 per user (enforced in templates.create). Same
+  // embedded exercise shape as `workouts`, minus date/duration.
+  templates: defineTable({
+    userId: v.id("users"),
+    name: v.string(),
+    exercises: v.array(
+      v.object({
+        name: v.string(),
+        sets: v.array(
+          v.object({
+            reps: v.number(),
+            weight: v.number(),
+          }),
+        ),
+      }),
+    ),
+    createdAt: v.number(),
+  }).index("by_user", ["userId"]),
+
   // Active-recovery check-ins (rest / cardio / stretching) that keep a streak
   // alive without being a full lifting workout.
   checkins: defineTable({

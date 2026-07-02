@@ -13,6 +13,7 @@ import {
   Trophy,
   X,
   Play,
+  Plus,
 } from "@phosphor-icons/react";
 import { withBodyweight, type PR } from "@/lib/prs";
 import { StatCard } from "@/components/ui/stat-card";
@@ -56,6 +57,7 @@ function fmtTime(sec: number) {
 export default function HomePage() {
   const workouts = useQuery(api.workouts.listForUser, { limit: 120 });
   const me = useQuery(api.users.me, {});
+  const templates = useQuery(api.templates.list, {});
   const exercises = useQuery(api.exercises.list, {});
   const latestBodyWeight = useQuery(api.bodyEntries.latestWeight, {});
   const latestBody = useQuery(api.bodyEntries.latest, {});
@@ -282,6 +284,75 @@ export default function HomePage() {
         </span>
       </Link>
 
+      {/* Quick start — start a workout from a saved template */}
+      {templates !== undefined && (
+        <section className="flex flex-col gap-2">
+          <div className="flex items-center justify-between">
+            <p className={sectionLabelStyles}>Quick start</p>
+            {templates.length > 0 && (
+              <Link
+                href="/templates"
+                className="font-mono text-[11px] text-accent hover:underline"
+              >
+                Manage
+              </Link>
+            )}
+          </div>
+
+          {templates.length > 0 ? (
+            <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+              {templates.map((template) => (
+                <Link
+                  key={template._id}
+                  href={`/workout/new?template=${template._id}`}
+                  className="flex shrink-0 items-center gap-2.5 rounded-[14px] border border-border bg-card px-3.5 py-3 transition-colors hover:border-accent/40"
+                >
+                  <span className="flex size-8 items-center justify-center rounded-full bg-accent text-accent-foreground">
+                    <Play weight="fill" className="ml-0.5 size-4" />
+                  </span>
+                  <span className="min-w-0">
+                    <span className="block max-w-[10rem] truncate font-display text-sm font-extrabold uppercase tracking-tight">
+                      {template.name}
+                    </span>
+                    <span className="mono-label text-[9px] text-muted-foreground">
+                      {template.exercises.length}{" "}
+                      {template.exercises.length === 1 ? "EXERCISE" : "EXERCISES"}
+                    </span>
+                  </span>
+                </Link>
+              ))}
+              {templates.length < 5 && (
+                <Link
+                  href="/templates/new"
+                  aria-label="New template"
+                  className="flex shrink-0 items-center gap-2 rounded-[14px] border-[1.5px] border-dashed border-border-strong px-4 text-accent transition-colors hover:border-accent hover:bg-accent/5"
+                >
+                  <Plus weight="bold" className="size-4" />
+                  <span className="mono-label text-[11px]">NEW</span>
+                </Link>
+              )}
+            </div>
+          ) : (
+            <Link
+              href="/templates/new"
+              className="flex items-center justify-between gap-3 rounded-[14px] border-[1.5px] border-dashed border-border-strong px-4 py-3.5 transition-colors hover:border-accent hover:bg-accent/5"
+            >
+              <span className="min-w-0">
+                <span className="block text-sm font-semibold text-foreground">
+                  Create a quick-start template
+                </span>
+                <span className="mono-label text-[10px] text-muted-foreground">
+                  Save your go-to days to start in one tap
+                </span>
+              </span>
+              <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-accent text-accent-foreground">
+                <Plus weight="bold" className="size-4" />
+              </span>
+            </Link>
+          )}
+        </section>
+      )}
+
       {/* This week — scoreboard stats */}
       <section className="flex flex-col gap-2">
         <p className={`${sectionLabelStyles} lg:hidden`}>This week</p>
@@ -472,7 +543,7 @@ export default function HomePage() {
                 .map((e) => e.name)
                 .join(" · ");
               return (
-                <li key={w._id}>
+                <li key={w._id} className="min-w-0">
                   <Link
                     href={`/workout/${w._id}`}
                     className={`flex items-center gap-3.5 rounded-[12px] border border-border bg-card px-4 py-3.5 transition-colors hover:border-border-strong`}
@@ -483,14 +554,14 @@ export default function HomePage() {
                       }`}
                     />
                     <span className="min-w-0 flex-1">
-                      <span className="block font-display text-[15px] font-extrabold">
+                      <span className="block truncate font-display text-[15px] font-extrabold">
                         {w.name}
                       </span>
                       <span className="block truncate font-mono text-[10px] uppercase tracking-wide text-muted-foreground">
                         {exerciseNames}
                       </span>
                     </span>
-                    <span className="text-right">
+                    <span className="shrink-0 text-right">
                       <span className="block font-mono text-[11px] text-bright">
                         {fmtWeekday(w.date)}
                       </span>

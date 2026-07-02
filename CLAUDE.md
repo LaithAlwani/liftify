@@ -41,15 +41,15 @@ fitness-tracker/                 single Next.js app at the repo root
 ├── components/                  ui/ + app-shell, rest-timer, notification-bell, onboarding,
 │                                plate-calculator, body-diagram, push-toggle, auth/, …
 ├── lib/                         helpers: streak.ts, prs.ts, shop.ts, clerk-errors.ts
-├── convex/                      Convex backend (7 tables; see schema.ts) + its own tsconfig.json
+├── convex/                      Convex backend (8 tables; see schema.ts) + its own tsconfig.json
 ├── public/                      sw.js, icons, logo
 ├── proxy.ts                     Clerk middleware (Next 16 renamed middleware → proxy)
 └── package.json · tsconfig.json · next.config.ts · PLAN.md · DEPLOY.md
 ```
 
-### Backend (Convex) — 7 tables, free app
+### Backend (Convex) — 8 tables, free app
 
-`users` (profile + reminder prefs, **no billing fields**), `exercises` (seeded read-only library, enriched from the public-domain **Free Exercise DB** — muscles, equipment, instructions, images), `workouts` (per-set `{reps, weight}` arrays + `durationSec`), `checkins` (rest/cardio/stretching active-recovery — feeds streaks), `bodyEntries` (weight + optional measurements), `notifications` (in-app), `pushSubscriptions` (Web Push). `convex/http.ts` is an **empty router** — a placeholder for a future Stripe webhook; there is none today.
+`users` (profile + reminder prefs, **no billing fields**), `exercises` (seeded read-only library, enriched from the public-domain **Free Exercise DB** — muscles, equipment, instructions, images), `workouts` (per-set `{reps, weight}` arrays + `durationSec`), `templates` (reusable quick-start "days" — same embedded exercise shape as workouts, **capped at 5 per user**), `checkins` (rest/cardio/stretching active-recovery — feeds streaks), `bodyEntries` (weight + optional measurements), `notifications` (in-app), `pushSubscriptions` (Web Push). `convex/http.ts` is an **empty router** — a placeholder for a future Stripe webhook; there is none today.
 
 ### Project structure rules
 
@@ -81,7 +81,7 @@ Run `npm run dev` and `npm run convex` in two terminals during development. Depl
 
 - **No billing / Stripe / paywall yet.** The app is free. Billing arrives with the paid AI tier (`PLAN.md` §5). Schema + `http.ts` are left forward-compatible for it.
 - **No gamification.** XP/levels/achievements/quests were removed — don't reintroduce them.
-- **No HealthKit / Google Fit, no offline writes, no workout plans/templates** in this version.
+- **No HealthKit / Google Fit, no offline writes** in this version. (Workout **templates** now exist — reusable quick-start days, capped at 5 per user.)
 - **Don't delete `convex/_generated`** — it's committed so Vercel can build the app without a Convex codegen step.
 - **No `--no-verify`, `--force` git pushes, or destructive resets** without explicit user authorization.
 

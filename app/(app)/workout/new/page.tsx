@@ -6,7 +6,6 @@ import { useMutation, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import {
-  MagnifyingGlass,
   Plus,
   Minus,
   Trash,
@@ -27,6 +26,8 @@ import {
 import { Button } from "@/components/ui/button";
 import { IconButton } from "@/components/ui/icon-button";
 import { PlateCalculator } from "@/components/plate-calculator";
+import { ExercisePicker } from "@/components/exercise-picker";
+import { ExerciseDetailModal } from "@/components/exercise-detail-modal";
 import { bestsByExercise, detectPRs, withBodyweight } from "@/lib/prs";
 import { useRest } from "@/components/rest-timer";
 
@@ -55,10 +56,6 @@ function fmtDuration(totalSec: number) {
   const ss = String(s).padStart(2, "0");
   return h > 0 ? `${h}:${mm}:${ss}` : `${m}:${ss}`;
 }
-
-const inputBase =
-  "rounded-xl border border-border bg-background px-3 text-base text-foreground " +
-  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
 
 const REST_DEFAULT = 90; // seconds
 
@@ -99,6 +96,7 @@ function LogWorkout() {
   const searchParams = useSearchParams();
   const editId = searchParams.get("edit");
   const repeatId = searchParams.get("repeat");
+  const templateId = searchParams.get("template");
   const isEditing = !!editId;
   const loadId = editId ?? repeatId;
 
@@ -106,23 +104,22 @@ function LogWorkout() {
   const allExercises = useQuery(api.exercises.list, {});
   const latestBodyWeight = useQuery(api.bodyEntries.latestWeight, {});
   const [detailId, setDetailId] = useState<Id<"exercises"> | null>(null);
-  const detail = useQuery(
-    api.exercises.getById,
-    detailId ? { id: detailId } : "skip",
-  );
   const history = useQuery(api.workouts.listForUser, { limit: 100 });
   const existingWorkout = useQuery(
     api.workouts.getById,
     loadId ? { workoutId: loadId as Id<"workouts"> } : "skip",
+  );
+  // Starting a workout from a template — prefills like "repeat" but the source
+  // is a template, and the template itself is left untouched.
+  const startTemplate = useQuery(
+    api.templates.getById,
+    templateId ? { templateId: templateId as Id<"templates"> } : "skip",
   );
   const create = useMutation(api.workouts.create);
   const update = useMutation(api.workouts.update);
 
   const [name, setName] = useState("Workout");
   const [entries, setEntries] = useState<Entry[]>([]);
-  const [search, setSearch] = useState("");
-  const [group, setGroup] = useState<string | null>(null);
-  const [equip, setEquip] = useState<string | null>(null);
   const [scrollTarget, setScrollTarget] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -143,7 +140,7 @@ function LogWorkout() {
   // (Edit mode loads from the saved workout instead — no draft.)
   const loaded = useRef(false);
   useEffect(() => {
-    if (isEditing || repeatId) {
+    if (isEditing || repeatId || templateId) {
       loaded.current = true;
       return;
     }
@@ -241,6 +238,27 @@ function LogWorkout() {
     repeatLoaded.current = true;
   }, [repeatId, isEditing, existingWorkout]);
 
+  // Template mode: prefill from a template as a brand-new session. Same as repeat
+  // (sets start unchecked); the template's target reps/weight seed each set.
+  const templateLoaded = useRef(false);
+  useEffect(() => {
+    if (!templateId || templateLoaded.current || !startTemplate) return;
+    setName(startTemplate.name);
+    setEntries(
+      startTemplate.exercises.map((ex) => ({
+        id: uid(),
+        name: ex.name,
+        sets: ex.sets.map((s) => ({
+          id: uid(),
+          reps: String(s.reps),
+          // A 0 target weight means "fill it in live" — leave the field blank.
+          weight: s.weight > 0 ? String(s.weight) : "",
+        })),
+      })),
+    );
+    templateLoaded.current = true;
+  }, [templateId, startTemplate]);
+
   // Overall session clock: tick every second while it's running (not paused).
   const running = timer !== null && timer.runningSince !== null;
   const paused = timer !== null && timer.runningSince === null;
@@ -287,23 +305,6 @@ function LogWorkout() {
       t && t.runningSince === null ? { ...t, runningSince: Date.now() } : t,
     );
   }
-
-  const groups = useMemo(() => {
-    if (!allExercises) return [];
-    return [
-      ...new Set(
-        allExercises.map((e) => e.muscleGroup).filter((g): g is string => !!g),
-      ),
-    ].sort();
-  }, [allExercises]);
-  const equipments = useMemo(() => {
-    if (!allExercises) return [];
-    return [
-      ...new Set(
-        allExercises.map((e) => e.equipment).filter((g): g is string => !!g),
-      ),
-    ].sort();
-  }, [allExercises]);
 
   // All-time heaviest weight per exercise, to show a +/- delta vs your best.
   const bestByExercise = useMemo(() => {
@@ -359,14 +360,6 @@ function LogWorkout() {
     return m;
   }, [allExercises]);
 
-  const term = search.trim().toLowerCase();
-  const visible = (allExercises ?? []).filter(
-    (e) =>
-      (!group || e.muscleGroup === group) &&
-      (!equip || e.equipment === equip) &&
-      (!term || e.name.toLowerCase().includes(term)),
-  );
-
   // Scroll to (and focus) the exercise that was just added.
   useEffect(() => {
     if (!scrollTarget) return;
@@ -408,12 +401,6 @@ function LogWorkout() {
       else next.add(id);
       return next;
     });
-  }
-  function pickExercise(exName: string) {
-    addExercise(exName);
-    setPickerOpen(false);
-    setSearch("");
-    setDetailId(null);
   }
   function removeExercise(id: string) {
     setEntries((prev) => prev.filter((e) => e.id !== id));
@@ -570,12 +557,6 @@ function LogWorkout() {
     }
   }
 
-  const customName = search.trim();
-  const showAddCustom =
-    customName.length > 0 &&
-    allExercises !== undefined &&
-    !allExercises.some((e) => e.name.toLowerCase() === customName.toLowerCase());
-
   // Exercises with an unfinished set, for the "finish your set" prompt.
   const pendingEntries = entries.filter((e) => e.sets.some((s) => !s.done));
   const pendingNames = pendingEntries.map((e) => e.name);
@@ -654,6 +635,9 @@ function LogWorkout() {
   // Before the session starts (new workout only), the primary action uses the
   // loud "hero" CTA — same treatment as the home page start button.
   const showStartHero = !isEditing && !started;
+
+  // Names already in this workout — drives the ✓ vs + affordance in the picker.
+  const addedNames = new Set(entries.map((entry) => entry.name));
 
   return (
     <div className="flex min-h-full flex-col md:flex-row">
@@ -1232,268 +1216,22 @@ function LogWorkout() {
         </div>
       </aside>
 
-      {/* Exercise picker modal */}
-      {pickerOpen && (
-        <div
-          className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 sm:items-center sm:p-4"
-          onClick={() => {
-            setPickerOpen(false);
-            setSearch("");
-          }}
-          role="dialog"
-          aria-modal="true"
-        >
-          <div
-            className="flex max-h-[85vh] w-full max-w-md flex-col rounded-t-card border border-border bg-card shadow-xl sm:rounded-card"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-center justify-between gap-2 border-b border-border p-4">
-              <h2 className="font-display text-lg font-black">Add exercise</h2>
-              <button
-                onClick={() => {
-                  setPickerOpen(false);
-                  setSearch("");
-                }}
-                aria-label="Close"
-                className="flex size-8 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-              >
-                <X className="size-5" />
-              </button>
-            </div>
+      {/* Library picker + how-to detail (shared components) */}
+      <ExercisePicker
+        open={pickerOpen}
+        onClose={() => setPickerOpen(false)}
+        onPick={addExercise}
+        addedNames={addedNames}
+        addLabel="Add to workout"
+      />
 
-            <div className="flex flex-col gap-3 p-4 pb-3">
-              <div className="relative">
-                <MagnifyingGlass className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-                <input
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  placeholder="Search exercises…"
-                  autoFocus
-                  className={`h-11 w-full pl-9 pr-4 ${inputBase} rounded-full`}
-                />
-              </div>
-
-              {/* Muscle-group pills — scroll horizontally */}
-              <div className="-mx-4 flex gap-2 overflow-x-auto px-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-                <FilterPill active={group === null} onClick={() => setGroup(null)}>
-                  All muscles
-                </FilterPill>
-                {groups.map((g) => (
-                  <FilterPill
-                    key={g}
-                    active={group === g}
-                    onClick={() => setGroup(group === g ? null : g)}
-                  >
-                    {g}
-                  </FilterPill>
-                ))}
-              </div>
-
-              {/* Equipment pills */}
-              <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-                <FilterPill active={equip === null} onClick={() => setEquip(null)}>
-                  All equipment
-                </FilterPill>
-                {equipments.map((g) => (
-                  <FilterPill
-                    key={g}
-                    active={equip === g}
-                    onClick={() => setEquip(equip === g ? null : g)}
-                  >
-                    {g}
-                  </FilterPill>
-                ))}
-              </div>
-            </div>
-
-            <div className="flex-1 overflow-y-auto px-4 pb-4">
-              {showAddCustom && (
-                <button
-                  onClick={() => pickExercise(customName)}
-                  className="mb-1.5 flex w-full items-center gap-2 rounded-xl border border-dashed border-border px-4 py-3 text-left text-sm font-medium transition-colors hover:border-accent-strong/40"
-                >
-                  <Plus className="size-4 text-accent-strong" />
-                  Add &ldquo;{customName}&rdquo; as a custom exercise
-                </button>
-              )}
-
-              {allExercises === undefined ? (
-                <ul className="flex flex-col gap-1.5">
-                  {Array.from({ length: 6 }).map((_, i) => (
-                    <li
-                      key={i}
-                      className="h-12 animate-pulse rounded-xl border border-border bg-muted"
-                    />
-                  ))}
-                </ul>
-              ) : (
-                <ul className="flex flex-col gap-1.5">
-                  {visible.map((ex) => {
-                    const added = entries.some((e) => e.name === ex.name);
-                    return (
-                      <li
-                        key={ex._id}
-                        className="flex items-center gap-1 rounded-xl border border-border pr-2 transition-colors hover:border-accent-strong/40"
-                      >
-                        <button
-                          type="button"
-                          onClick={() => pickExercise(ex.name)}
-                          className="flex min-w-0 flex-1 items-center gap-3 p-2 text-left"
-                        >
-                          {ex.image ? (
-                            // eslint-disable-next-line @next/next/no-img-element
-                            <img
-                              src={ex.image}
-                              alt=""
-                              loading="lazy"
-                              className="size-12 shrink-0 rounded-lg bg-white object-cover"
-                            />
-                          ) : (
-                            <span
-                              style={tileGradientStyle}
-                              className="flex size-12 shrink-0 items-center justify-center rounded-lg text-dim"
-                            >
-                              <Barbell className="size-5" />
-                            </span>
-                          )}
-                          <span className="flex min-w-0 flex-col">
-                            <span className="truncate font-display font-extrabold">
-                              {ex.name}
-                            </span>
-                            {ex.muscleGroup && (
-                              <span className="mono-label text-[10px] text-muted-foreground">
-                                {ex.muscleGroup}
-                              </span>
-                            )}
-                          </span>
-                        </button>
-                        {ex.hasDetail && (
-                          <button
-                            type="button"
-                            onClick={() => setDetailId(ex._id)}
-                            aria-label={`How to do ${ex.name}`}
-                            title="How-to & instructions"
-                            className="flex size-9 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-accent-strong"
-                          >
-                            <Info className="size-5" />
-                          </button>
-                        )}
-                        {added ? (
-                          <Check
-                            weight="bold"
-                            className="size-4 shrink-0 text-accent-strong"
-                          />
-                        ) : (
-                          <Plus className="size-4 shrink-0 text-muted-foreground" />
-                        )}
-                      </li>
-                    );
-                  })}
-                  {visible.length === 0 && (
-                    <p className="px-1 text-sm text-muted-foreground">
-                      No matches — type a name and add it as custom.
-                    </p>
-                  )}
-                </ul>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Exercise detail / how-to */}
-      {detailId && (
-        <div
-          className="fixed inset-0 z-[60] flex items-end justify-center bg-black/60 sm:items-center sm:p-4"
-          onClick={() => setDetailId(null)}
-          role="dialog"
-          aria-modal="true"
-        >
-          <div
-            className="flex max-h-[90vh] w-full max-w-lg flex-col overflow-hidden rounded-t-card border border-border bg-card shadow-xl sm:rounded-card"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-center justify-between gap-2 border-b border-border p-4">
-              <h2 className="truncate font-display text-lg font-black">
-                {detail?.name ?? "Exercise"}
-              </h2>
-              <button
-                onClick={() => setDetailId(null)}
-                aria-label="Close"
-                className="flex size-8 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-              >
-                <X className="size-5" />
-              </button>
-            </div>
-
-            <div className="flex-1 overflow-y-auto">
-              {detail === undefined ? (
-                <div className="aspect-video animate-pulse bg-muted" />
-              ) : detail === null ? (
-                <p className="p-4 text-sm text-muted-foreground">
-                  Couldn&apos;t load this exercise.
-                </p>
-              ) : (
-                <>
-                  {detail.images && detail.images.length > 0 && (
-                    <div
-                      className={`grid gap-px bg-border ${
-                        detail.images.length > 1 ? "grid-cols-2" : "grid-cols-1"
-                      }`}
-                    >
-                      {detail.images.map((src, i) => (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img
-                          key={i}
-                          src={src}
-                          alt={`${detail.name} ${i === 0 ? "start" : "end"} position`}
-                          className="aspect-square w-full bg-white object-contain"
-                        />
-                      ))}
-                    </div>
-                  )}
-                  <div className="flex flex-col gap-4 p-4">
-                    <div className="flex flex-wrap gap-1.5">
-                      {[detail.muscleGroup, detail.equipment, detail.level]
-                        .filter(Boolean)
-                        .map((chip) => (
-                          <span
-                            key={chip}
-                            className="rounded-full bg-muted px-2.5 py-1 text-xs font-medium capitalize text-muted-foreground"
-                          >
-                            {chip}
-                          </span>
-                        ))}
-                    </div>
-                    {detail.instructions && detail.instructions.length > 0 ? (
-                      <ol className="flex list-decimal flex-col gap-2 pl-5 text-sm leading-relaxed text-muted-foreground">
-                        {detail.instructions.map((step, i) => (
-                          <li key={i}>{step}</li>
-                        ))}
-                      </ol>
-                    ) : (
-                      <p className="text-sm text-muted-foreground">
-                        No description available for this exercise.
-                      </p>
-                    )}
-                  </div>
-                </>
-              )}
-            </div>
-
-            <div className="border-t border-border p-4">
-              <Button
-                className="w-full"
-                onClick={() => detail && pickExercise(detail.name)}
-                disabled={!detail}
-              >
-                <Plus weight="bold" className="size-4" />
-                Add to workout
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* How-to opened from an exercise card (not the picker). */}
+      <ExerciseDetailModal
+        exerciseId={detailId}
+        onClose={() => setDetailId(null)}
+        onAdd={addExercise}
+        addLabel="Add to workout"
+      />
 
       {finishPrompt && (
         <div
@@ -1767,28 +1505,5 @@ function RailStat({
         {value}
       </span>
     </div>
-  );
-}
-
-function FilterPill({
-  active,
-  onClick,
-  children,
-}: {
-  active: boolean;
-  onClick: () => void;
-  children: React.ReactNode;
-}) {
-  return (
-    <button
-      onClick={onClick}
-      className={`shrink-0 whitespace-nowrap rounded-full border px-3.5 py-1.5 text-sm font-medium capitalize transition-colors ${
-        active
-          ? "border-accent bg-accent text-accent-foreground"
-          : "border-border text-muted-foreground hover:text-foreground"
-      }`}
-    >
-      {children}
-    </button>
   );
 }
