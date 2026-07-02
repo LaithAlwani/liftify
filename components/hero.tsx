@@ -1,5 +1,7 @@
 "use client";
 
+import Image from "next/image";
+import heroImg from "@/public/hero.jpg";
 import { motion, useReducedMotion, type Variants } from "motion/react";
 import {
   Lightning,
@@ -31,14 +33,30 @@ export function Hero() {
   const reduce = useReducedMotion();
 
   return (
-    <section className="relative overflow-hidden">
+    <section className="relative flex min-h-screen w-full items-center overflow-hidden">
+      {/* Hero background — fills the viewport, centered, covered */}
+      <Image
+        src={heroImg}
+        alt="Lifter performing a barbell row in a dimly lit gym"
+        fill
+        sizes="100vw"
+        placeholder="blur"
+        loading="eager"
+        className="-z-30 object-cover object-center"
+      />
+      {/* Legibility overlay */}
+      <div
+        aria-hidden
+        className="absolute inset-0 -z-20 bg-gradient-to-r from-background via-background/85 to-background/40"
+      />
+
       {/* Volt glow, top-right */}
       <div
         aria-hidden
         className="animate-aurora-a pointer-events-none absolute -right-28 -top-40 -z-10 size-[38rem] rounded-full bg-accent/15 blur-[120px]"
       />
 
-      <div className="container-page grid items-center gap-14 py-20 sm:py-24 lg:grid-cols-[1.05fr_0.95fr]">
+      <div className="container-page grid w-full items-center gap-14 py-20 sm:py-24 lg:grid-cols-[1.05fr_0.95fr]">
         {/* Copy */}
         <motion.div
           variants={container}
