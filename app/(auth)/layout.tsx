@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { Flame, ChartLineUp, Lightning } from "@phosphor-icons/react";
 
 const PERKS = [
@@ -18,13 +19,20 @@ export default function AuthLayout({
     <div className="grid min-h-screen lg:grid-cols-2">
       {/* Brand panel */}
       <aside className="relative hidden overflow-hidden bg-card lg:flex lg:flex-col lg:justify-between lg:p-12">
-        <div
-          aria-hidden
-          className="pointer-events-none absolute -right-24 -top-28 size-[32rem] rounded-full bg-violet-600/30 blur-[120px]"
+        {/* Full-bleed sign-in photo — centered; the sides crop (object-cover).
+            next/image serves a resized WebP/AVIF and only loads on desktop,
+            where this panel is shown (~50vw). */}
+        <Image
+          src="/sign-in-image.jpg"
+          alt=""
+          fill
+          sizes="50vw"
+          className="pointer-events-none object-cover object-center"
         />
+        {/* Scrim so the overlaid brand content stays readable over the photo. */}
         <div
           aria-hidden
-          className="pointer-events-none absolute -left-32 bottom-0 size-[30rem] rounded-full bg-fuchsia-600/20 blur-[130px]"
+          className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/85 via-black/45 to-black/30"
         />
 
         <Link
@@ -37,15 +45,13 @@ export default function AuthLayout({
         </Link>
 
         <div className="relative flex flex-col gap-8">
-          <h2 className="max-w-md text-4xl font-semibold leading-[1.1] tracking-tighter">
+          <h2 className="max-w-md font-display text-4xl font-black uppercase leading-[1.05] tracking-tight">
             Lift heavy. Log fast.{" "}
-            <span className="bg-linear-to-r from-violet-400 to-fuchsia-400 bg-clip-text text-transparent">
-              Watch strength climb.
-            </span>
+            <span className="text-accent">Watch strength climb.</span>
           </h2>
           <ul className="flex flex-col gap-4">
             {PERKS.map((p) => (
-              <li key={p.text} className="flex items-center gap-3 text-muted-foreground">
+              <li key={p.text} className="flex items-center gap-3 text-white/85">
                 <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-accent/15 text-accent-strong">
                   <p.icon weight="bold" className="size-5" />
                 </span>
@@ -55,14 +61,30 @@ export default function AuthLayout({
           </ul>
         </div>
 
-        <p className="relative text-sm text-muted-foreground/70">
+        <p className="relative text-sm text-white/60">
           © Liftify — built for people who actually lift.
         </p>
       </aside>
 
       {/* Form panel */}
-      <main className="flex flex-1 items-center justify-center p-6 py-16">
-        {children}
+      <main className="relative flex flex-1 items-center justify-center p-6 py-16">
+        {/* Mobile-only: the same photo sits behind the form (desktop shows it in
+            the brand panel instead). Dimmed so the frosted form stays readable. */}
+        <Image
+          src="/sign-in-image.jpg"
+          alt=""
+          fill
+          sizes="100vw"
+          className="pointer-events-none object-cover object-center lg:hidden"
+        />
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-0 bg-black/60 lg:hidden"
+        />
+
+        <div className="relative z-10 w-full max-w-sm rounded-2xl border border-border bg-background/80 p-5 backdrop-blur-md lg:rounded-none lg:border-0 lg:bg-transparent lg:p-0 lg:backdrop-blur-none">
+          {children}
+        </div>
       </main>
     </div>
   );
