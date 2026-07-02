@@ -29,7 +29,7 @@ const NAV_ITEMS: NavItem[] = [
   { href: "/", label: "Home", short: "HOME", icon: House },
   { href: "/workout/new", label: "Log", short: "LOG", icon: Barbell },
   { href: "/body", label: "Body", short: "BODY", icon: Scales },
-  { href: "/progress", label: "Progress", short: "STATS", icon: ChartLineUp },
+  { href: "/progress", label: "Progress", short: "PROGRESS", icon: ChartLineUp },
   { href: "/shop", label: "Shop", short: "SHOP", icon: Storefront },
 ];
 
@@ -149,7 +149,8 @@ export function AppShell({ children }: { children: ReactNode }) {
                       : "text-muted-foreground hover:bg-muted hover:text-foreground"
                   }`}
                 >
-                  <Ico weight={active ? "fill" : "regular"} className="size-5" />
+                  {/* Outlined icon even when active — matches the mobile tab bar. */}
+                  <Ico weight="regular" className="size-5" />
                   {item.label}
                 </Link>
               );
