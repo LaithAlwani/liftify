@@ -1,0 +1,162 @@
+@import "tailwindcss";
+
+/* =====================================================================
+   Liftify shared design tokens  (canonical — mirror into the app repo)
+   Dark, athletic performance look: ink + VOLT lime accent. Dark by default.
+   Keep this :root + @theme + .container-page block identical in both repos.
+   ===================================================================== */
+
+:root {
+  color-scheme: dark;
+
+  --background: #0a0a0b;        /* ink */
+  --foreground: #f4f4f2;        /* near-white */
+  --muted: #141417;            /* chips / cards / subtle surfaces */
+  --muted-foreground: #a1a1aa; /* secondary text */
+  --subtle: #8a8a92;           /* mono labels / tertiary text */
+  --card: #141417;             /* cards / panels */
+  --inset: #0e0e12;            /* recessed rows inside cards */
+  --border: #26262b;           /* hairlines */
+  --ring: #d7f24a;
+
+  /* Brand — Liftify Volt (electric lime) */
+  --accent: #d7f24a;            /* volt lime — CTAs, energy, progress */
+  --accent-foreground: #0a0a0b; /* ink text on volt */
+  --accent-strong: #e2fa63;     /* brighter volt — hover / accent text */
+
+  /* Spark — secondary energy accent (streaks, PRs) */
+  --spark: #ff5a1f;             /* ember orange */
+  --spark-strong: #ff8a5f;      /* lighter ember — text */
+
+  /* Shape */
+  --radius: 0.875rem;           /* 14px — cards */
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-subtle: var(--subtle);
+  --color-card: var(--card);
+  --color-inset: var(--inset);
+  --color-border: var(--border);
+  --color-ring: var(--ring);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent-strong: var(--accent-strong);
+  --color-spark: var(--spark);
+  --color-spark-strong: var(--spark-strong);
+
+  --radius-card: var(--radius);
+
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+  --font-display: var(--font-archivo);
+}
+
+/* Shared layout rhythm — identical margins across marketing + app.
+   Page gutters: 20px mobile / 32px ≥640px, capped at 72rem. */
+.container-page {
+  margin-inline: auto;
+  width: 100%;
+  max-width: 72rem;       /* max-w-6xl */
+  padding-inline: 1.25rem;
+}
+@media (min-width: 640px) {
+  .container-page { padding-inline: 2rem; }
+}
+
+body {
+  background-color: var(--background);
+  /* Ambient blueprint grid — the athletic backdrop for the whole page. */
+  background-image:
+    linear-gradient(#111116 1px, transparent 1px),
+    linear-gradient(90deg, #111116 1px, transparent 1px);
+  background-size: 48px 48px;
+  color: var(--foreground);
+  font-family: var(--font-geist-sans), ui-sans-serif, system-ui, -apple-system,
+    "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+
+/* Archivo — the display voice. Heavy, condensed-feeling, often italic. */
+.font-display {
+  font-family: var(--font-archivo), "Archivo", ui-sans-serif, system-ui,
+    sans-serif;
+  font-weight: 900;
+  letter-spacing: -0.03em;
+}
+
+/* Skewed volt highlight used in display headings ("LOG FAST"). */
+.tag-skew {
+  display: inline-block;
+  background: var(--accent);
+  color: var(--accent-foreground);
+  padding: 0 0.75rem;
+  transform: skewX(-6deg);
+}
+
+/* ---- Marketing-only decorative utilities (not part of the shared token block) ---- */
+.bg-grid {
+  background-image:
+    linear-gradient(
+      to right,
+      color-mix(in oklab, var(--foreground) 6%, transparent) 1px,
+      transparent 1px
+    ),
+    linear-gradient(
+      to bottom,
+      color-mix(in oklab, var(--foreground) 6%, transparent) 1px,
+      transparent 1px
+    );
+  background-size: 44px 44px;
+}
+/* Dark grid overlay for use on the volt CTA panel. */
+.bg-grid-ink {
+  background-image:
+    linear-gradient(rgba(10, 10, 11, 0.06) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(10, 10, 11, 0.06) 1px, transparent 1px);
+  background-size: 40px 40px;
+}
+.mask-fade-b {
+  -webkit-mask-image: linear-gradient(to bottom, black 55%, transparent);
+  mask-image: linear-gradient(to bottom, black 55%, transparent);
+}
+@media (prefers-reduced-motion: no-preference) {
+  html {
+    scroll-behavior: smooth;
+  }
+}
+
+/* ---- Marketing motion (ambient, CSS-driven) ---- */
+@keyframes aurora-a {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  50% { transform: translate(60px, -40px) scale(1.2); }
+}
+@keyframes aurora-b {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  50% { transform: translate(-70px, 50px) scale(1.15); }
+}
+@keyframes marquee {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+@keyframes gradient-pan {
+  0%, 100% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .animate-aurora-a { animation: aurora-a 18s ease-in-out infinite; }
+  .animate-aurora-b { animation: aurora-b 24s ease-in-out infinite; }
+  .animate-marquee { animation: marquee 32s linear infinite; }
+  .animate-gradient-pan {
+    background-size: 200% 200%;
+    animation: gradient-pan 8s ease infinite;
+  }
+}
+.text-gradient {
+  background-image: linear-gradient(110deg, #e2fa63 0%, #d7f24a 50%, #b6d92e 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
