@@ -12,9 +12,11 @@
 
 > **History:** this repo began as an Expo / React Native monorepo with Duolingo-style gamification (XP, levels, achievements, quests). That app was **abandoned and replaced** by this Next.js web PWA. Gamification is **removed**. If you find references to Expo, NativeWind, `apps/mobile`, XP, or subscriptions, they are stale — treat them as bugs/cleanup, not as the design.
 
-**Two products, two repos:**
-- **`liftify.com`** → marketing site (separate repo — the local `corevex` folder, pending rename).
-- **`app.liftify.com`** → the PWA (**this** repo — a single Next.js app at the repo root).
+**Two products, one monorepo:**
+- **`liftify.com`** → marketing site — `apps/marketing` (backend-less Next.js).
+- **`app.liftify.com`** → the PWA — **this** package, `apps/app`.
+
+Both live in one npm-workspaces monorepo (GitHub `fitness-tracker`). See the root `CLAUDE.md` for the workspace layout and cross-app commands.
 
 ### Stack
 
@@ -25,12 +27,12 @@
 - **Convex** database via `convex/react` + `ConvexProviderWithClerk`.
 - **Web Push** (VAPID) + a minimal online-first **service worker** (`public/sw.js`).
 - **@phosphor-icons/react** for icons. **Geist / Geist Mono** via `next/font/google`.
-- **Plain npm, single app** — no monorepo, no Turborepo, no workspaces.
+- **Plain npm workspaces** — this app is the `apps/app` workspace in the monorepo. No Turborepo. `npm install` runs once at the repo root and hoists a single `node_modules`.
 
 ### Project layout
 
 ```
-fitness-tracker/                 single Next.js app at the repo root
+apps/app/                        the PWA workspace (this package)
 ├── app/                         App Router routes
 │   ├── (auth)/                  sign-in, sign-up, sso-callback (custom Clerk forms)
 │   ├── (app)/                   home, workout/new, workout/[id], history, progress, body, shop, settings
@@ -53,12 +55,12 @@ fitness-tracker/                 single Next.js app at the repo root
 
 ### Project structure rules
 
-- **Single app, no workspaces.** App code (`app/`, `components/`, `lib/`) and the Convex backend (`convex/`) live together at the repo root. The old `@liftify/*` packages are gone — `packages/shared` and `packages/tsconfig` were **deleted** (nothing imported `@liftify/shared`; the app has its own `lib/prs.ts`).
+- **This app is the `apps/app` workspace.** App code (`app/`, `components/`, `lib/`) and the Convex backend (`convex/`) live together under `apps/app/`. The old `@liftify/*` packages are gone (the app has its own `lib/prs.ts`). The marketing site is a **separate** workspace at `apps/marketing` — don't import across the two.
 - Anything `convex/` imports must stay **pure TypeScript** (no `react`/`next`/DOM) so it bundles in the Convex runtime.
 
 ### Conventions specific to this project
 
-- **Imports**: Convex API via `import { api } from "@/convex/_generated/api"`; types via `@/convex/_generated/dataModel`. The `@/*` alias maps to the repo root.
+- **Imports**: Convex API via `import { api } from "@/convex/_generated/api"`; types via `@/convex/_generated/dataModel`. The `@/*` alias maps to this app's root (`apps/app`), set by `apps/app/tsconfig.json`.
 - **Auth gate**: `proxy.ts` at the repo root runs Clerk's `clerkMiddleware()` (**Next 16 renamed `middleware` → `proxy`**), protecting everything except `/sign-in`, `/sign-up`, `/sso-callback`. Custom auth screens (`app/(auth)/`) use `useSignIn`/`useSignUp` with Google OAuth + email-code verification. `AppShell` calls `users.getOrCreateCurrentUser` on first authenticated load.
 - **Access is auth-only**: the app is free, so `users.accessState` just reports sign-in state. No subscription checks, no paywall redirects.
 - **Styling**: Tailwind v4 utility classes driven by the `@theme inline` tokens in `globals.css`. Don't add a `tailwind.config.*`.
@@ -75,7 +77,7 @@ fitness-tracker/                 single Next.js app at the repo root
 | Production build | `npm run build` |
 | Deploy Convex prod | `npm run convex:deploy` |
 
-Run `npm run dev` and `npm run convex` in two terminals during development. Deploy runbook: see `DEPLOY.md`.
+Run `npm run dev` and `npm run convex` in two terminals during development (or from the repo root: `npm run dev:app` and `npm run convex`). Deploy runbook: see `DEPLOY.md`.
 
 ### Hard "don't"s (deferred, not forgotten)
 
@@ -87,7 +89,7 @@ Run `npm run dev` and `npm run convex` in two terminals during development. Depl
 
 ### Environment variables
 
-One **root `.env.local`** serves both Next and the Convex CLI. App vars: `NEXT_PUBLIC_CONVEX_URL`, `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`, `CLERK_SECRET_KEY`, `NEXT_PUBLIC_APP_URL`, `NEXT_PUBLIC_VAPID_PUBLIC_KEY`, `NEXT_PUBLIC_DONATE_URL`. The Convex CLI manages `CONVEX_DEPLOYMENT` / `CONVEX_URL` / `CONVEX_SITE_URL`. Convex deployment env (`npx convex env set`): `CLERK_JWT_ISSUER_DOMAIN` + VAPID keys. (Future Stripe keys live on Convex prod only — see `DEPLOY.md`.)
+One **`.env.local` in this app's folder** (`apps/app/.env.local`) serves both Next and the Convex CLI (run Convex commands from `apps/app`). App vars: `NEXT_PUBLIC_CONVEX_URL`, `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`, `CLERK_SECRET_KEY`, `NEXT_PUBLIC_APP_URL`, `NEXT_PUBLIC_VAPID_PUBLIC_KEY`, `NEXT_PUBLIC_DONATE_URL`. The Convex CLI manages `CONVEX_DEPLOYMENT` / `CONVEX_URL` / `CONVEX_SITE_URL`. Convex deployment env (`npx convex env set`): `CLERK_JWT_ISSUER_DOMAIN` + VAPID keys. (Future Stripe keys live on Convex prod only — see `DEPLOY.md`.)
 
 ### Gotchas (append as discovered)
 

@@ -1,5 +1,12 @@
 # Dependencies
 node_modules/
+.pnp
+.pnp.*
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/versions
 
 # Next.js
 .next/
@@ -30,6 +37,7 @@ Thumbs.db
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+.pnpm-debug.log*
 
 # Testing
 coverage/
@@ -37,3 +45,4 @@ coverage/
 # Misc
 *.tsbuildinfo
 *.orig.*
+*.pem

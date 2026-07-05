@@ -1,12 +1,18 @@
 # Deploying Liftify
 
-Two Vercel projects (app + marketing) and one Convex **production** deployment.
+Everything now lives in **one monorepo** (GitHub `fitness-tracker`). There are still
+two Vercel projects (app + marketing) and one Convex **production** deployment — the
+two Vercel projects import the **same repo** and differ only by **Root Directory**.
 
 ```
-liftify.com       -> marketing Vercel project (the corevex repo)
-app.liftify.com   -> app Vercel project (this repo, root dir = repo root)
+liftify.com       -> marketing Vercel project  (repo: fitness-tracker, Root Directory = apps/marketing)
+app.liftify.com   -> app Vercel project        (repo: fitness-tracker, Root Directory = apps/app)
 Convex (prod)     -> backend for the app (separate from your dev deployment)
 ```
+
+> Vercel auto-detects the npm workspace: with a Root Directory set it installs from the
+> repo root (single lockfile) and builds inside that subdirectory. Leave Install/Build
+> commands at their defaults.
 
 ## 1. Convex production backend
 
@@ -43,7 +49,7 @@ Dev keys (`pk_test_…`) only work on localhost. For `app.liftify.com`:
 ## 3. App on Vercel  →  app.liftify.com
 
 - Import the `fitness-tracker` repo.
-- **Root Directory:** repo root (the app now lives at the root, not in `apps/web`).
+- **Root Directory:** `apps/app` (the app lives in the monorepo under `apps/app`).
 - Framework preset: **Next.js** (auto). Install/Build commands: defaults.
 - **Environment Variables (Production):**
 
@@ -58,7 +64,9 @@ Dev keys (`pk_test_…`) only work on localhost. For `app.liftify.com`:
 
 ## 4. Marketing on Vercel  →  liftify.com
 
-- Import the marketing repo (`corevex`). Root Directory: repo root.
+- Import the **same** `fitness-tracker` repo. **Root Directory:** `apps/marketing`.
+  (If the marketing Vercel project still points at the old `liftify-marketing` repo,
+  repoint it to `fitness-tracker` and set Root Directory to `apps/marketing`.)
 - **Environment Variables:** `NEXT_PUBLIC_APP_URL = https://app.liftify.com`
   (no Clerk / Convex / Stripe here).
 - **Domains:** `liftify.com` + `www.liftify.com`.
