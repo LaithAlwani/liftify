@@ -1,0 +1,131 @@
+@import "tailwindcss";
+
+/* =====================================================================
+   Liftify design tokens — "Iron House" redesign
+   Blacked-out, gym-athletic look: steel surfaces, a volt (lime) accent for
+   energy / CTAs, and a spark (orange) accent for PRs / streaks.
+   Dark by default. Keep this :root + @theme block in sync with any redesign.
+   ===================================================================== */
+
+:root {
+  color-scheme: dark;
+
+  /* Surfaces (darkest → lightest) */
+  --background: #0a0a0c; /* app ink */
+  --surface-2: #0c0c0e; /* sidebar / nav bars */
+  --surface-3: #0e0e11; /* inset panels (active set) */
+  --card: #141417; /* cards / panels */
+
+  /* Text */
+  --foreground: #f4f4f2; /* primary text */
+  --bright: #e7e7e4; /* emphasised label text */
+  --muted-foreground: #8a8a92; /* secondary text / labels */
+  --dim: #6a6a72; /* faint labels */
+
+  /* Lines / chips */
+  --border: #26262b; /* default hairline */
+  --border-strong: #34343a; /* emphasis / active borders */
+  --muted: #1c1c22; /* chips / subtle fills */
+
+  /* Volt — energy / CTA */
+  --accent: #d7f24a;
+  --accent-foreground: #0a0a0b; /* dark text on volt */
+  --accent-strong: #e2ff63; /* brighter volt for hovers */
+
+  /* Spark — PR / streak */
+  --spark: #ff5a1f;
+  --spark-lite: #ff8a5f;
+
+  --ring: #d7f24a;
+
+  /* Shape */
+  --radius: 0.875rem; /* 14px — cards */
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-surface-2: var(--surface-2);
+  --color-surface-3: var(--surface-3);
+  --color-card: var(--card);
+
+  --color-foreground: var(--foreground);
+  --color-bright: var(--bright);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-dim: var(--dim);
+
+  --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
+  --color-muted: var(--muted);
+
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent-strong: var(--accent-strong);
+  --color-spark: var(--spark);
+  --color-spark-lite: var(--spark-lite);
+  --color-ring: var(--ring);
+
+  --radius-card: var(--radius);
+
+  --font-display: var(--font-archivo);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+/* Shared layout rhythm — page gutters: 20px mobile / 32px ≥640px, capped. */
+.container-page {
+  margin-inline: auto;
+  width: 100%;
+  max-width: 72rem; /* max-w-6xl */
+  padding-inline: 1.25rem;
+}
+@media (min-width: 640px) {
+  .container-page {
+    padding-inline: 2rem;
+  }
+}
+
+/* Cover the iOS safe-area / overscroll region so no strip shows below nav. */
+html {
+  background: var(--background);
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-geist-sans), ui-sans-serif, system-ui, -apple-system,
+    "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ---------------------------------------------------------------------
+   Reusable text helpers used across the redesign.
+   - .font-display    → Archivo black, for loud headline numbers/titles.
+   - .display-italic  → the slanted display treatment on hero words.
+   - .mono-label      → the small spaced-out Geist Mono caption labels.
+   --------------------------------------------------------------------- */
+.font-display {
+  font-family: var(--font-archivo), var(--font-geist-sans), sans-serif;
+  letter-spacing: -0.03em;
+}
+.display-italic {
+  font-style: italic;
+}
+.mono-label {
+  font-family: var(--font-geist-mono), ui-monospace, monospace;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+/* Live-session dot / bar animations from the design. */
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.25;
+  }
+}
+.animate-pulse-dot {
+  animation: pulse 1.4s infinite;
+}
