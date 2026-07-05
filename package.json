@@ -1,0 +1,23 @@
+{
+  "name": "liftify",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Liftify monorepo — the PWA (apps/app) and the marketing site (apps/marketing).",
+  "packageManager": "npm@11.7.0",
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "workspaces": [
+    "apps/*"
+  ],
+  "scripts": {
+    "dev:app": "npm run dev -w apps/app",
+    "dev:marketing": "npm run dev -w apps/marketing",
+    "build:app": "npm run build -w apps/app",
+    "build:marketing": "npm run build -w apps/marketing",
+    "typecheck": "npm run typecheck -w apps/app",
+    "lint": "npm run lint --workspaces --if-present",
+    "convex": "npm run convex -w apps/app",
+    "convex:deploy": "npm run convex:deploy -w apps/app"
+  }
+}
