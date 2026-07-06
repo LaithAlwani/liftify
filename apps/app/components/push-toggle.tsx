@@ -14,7 +14,7 @@ function urlBase64ToUint8Array(base64: string) {
   return out;
 }
 
-export function PushToggle() {
+export function PushToggle({ compact = false }: { compact?: boolean } = {}) {
   const serverEnabled = useQuery(api.push.pushEnabled, {});
   const save = useMutation(api.push.savePushSubscription);
   const remove = useMutation(api.push.removePushSubscription);
@@ -138,6 +138,51 @@ export function PushToggle() {
     } finally {
       setBusy(false);
     }
+  }
+
+  // Compact row for tight spaces (e.g. the onboarding wizard) — just a label
+  // and an enable/disable button, matching the surrounding card rows.
+  if (compact) {
+    return (
+      <div className="rounded-2xl border border-border bg-surface-3 px-4 py-3">
+        <div className="flex items-center justify-between gap-4">
+          <p className="flex items-center gap-2 text-sm font-medium">
+            <BellRinging weight="bold" className="size-4 text-accent-strong" />
+            Push notifications
+          </p>
+          {enabled ? (
+            <button
+              type="button"
+              onClick={disable}
+              disabled={busy}
+              className="rounded-full border border-border px-4 py-2 text-xs font-medium transition-colors hover:bg-muted disabled:opacity-50"
+            >
+              {busy ? "Working…" : "On"}
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={enable}
+              disabled={busy}
+              className="rounded-full bg-accent px-4 py-2 text-xs font-medium text-accent-foreground transition-colors hover:bg-accent-strong disabled:opacity-50"
+            >
+              {busy ? "Working…" : "Enable"}
+            </button>
+          )}
+        </div>
+        {supported && blocked && (
+          <p className="mt-2 text-xs text-muted-foreground">
+            Notifications are blocked — re-allow them in your browser settings.
+          </p>
+        )}
+        {!supported && (
+          <p className="mt-2 text-xs text-muted-foreground">
+            On iPhone, add Liftify to your Home Screen first.
+          </p>
+        )}
+        {error && <p className="mt-2 text-xs text-red-500">{error}</p>}
+      </div>
+    );
   }
 
   return (

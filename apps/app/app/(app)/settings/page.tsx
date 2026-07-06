@@ -9,13 +9,17 @@ import {
   SignOut,
   TrashSimple,
   WarningCircle,
-  Minus,
-  Plus,
   DownloadSimple,
   CaretLeft,
 } from "@phosphor-icons/react";
 import { PushToggle } from "@/components/push-toggle";
 import { Button } from "@/components/ui/button";
+import {
+  Segmented,
+  Stepper,
+  Switch,
+  type SegmentOption,
+} from "@/components/ui/form-controls";
 
 // Shared style constants so the whole page is easy to re-theme in one place.
 const cardStyles =
@@ -63,60 +67,6 @@ function fmtHour(h: number) {
   return `${h12}:00 ${am ? "AM" : "PM"}`;
 }
 
-// Rounded pill of mutually exclusive options (LB/KG, text size).
-type SegmentOption<T extends string> = { key: T; label: string };
-function Segmented<T extends string>({
-  options,
-  value,
-  onChange,
-}: {
-  options: SegmentOption<T>[];
-  value: T;
-  onChange: (key: T) => void;
-}) {
-  return (
-    <div className="inline-flex gap-1 rounded-full border border-border bg-surface-3 p-1">
-      {options.map((option) => {
-        const isActive = option.key === value;
-        return (
-          <button
-            key={option.key}
-            type="button"
-            onClick={() => onChange(option.key)}
-            className={`rounded-full px-4 py-2 font-mono text-xs font-semibold uppercase tracking-[0.04em] transition-colors ${
-              isActive
-                ? "bg-accent text-accent-foreground"
-                : "text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            {option.label}
-          </button>
-        );
-      })}
-    </div>
-  );
-}
-
-function Switch({ on, onClick }: { on: boolean; onClick: () => void }) {
-  return (
-    <button
-      type="button"
-      role="switch"
-      aria-checked={on}
-      onClick={onClick}
-      className={`flex h-[26px] w-[46px] shrink-0 items-center rounded-full p-[3px] transition-colors ${
-        on ? "justify-end bg-accent" : "justify-start bg-muted"
-      }`}
-    >
-      <span
-        className={`size-5 rounded-full transition-colors ${
-          on ? "bg-accent-foreground" : "bg-dim"
-        }`}
-      />
-    </button>
-  );
-}
-
 function ReminderRow({
   title,
   desc,
@@ -135,32 +85,6 @@ function ReminderRow({
         <p className={rowDescStyles}>{desc}</p>
       </div>
       <Switch on={on} onClick={onToggle} />
-    </div>
-  );
-}
-
-function Stepper({
-  value,
-  onDec,
-  onInc,
-}: {
-  value: string;
-  onDec: () => void;
-  onInc: () => void;
-}) {
-  const stepButtonStyles =
-    "flex size-[30px] items-center justify-center rounded-full bg-muted text-bright transition-colors hover:text-foreground";
-  return (
-    <div className="inline-flex shrink-0 items-center gap-0.5 rounded-full border border-border-strong p-1">
-      <button onClick={onDec} aria-label="Decrease" className={stepButtonStyles}>
-        <Minus weight="bold" className="size-3.5" />
-      </button>
-      <span className="min-w-[58px] text-center font-display text-[15px] font-extrabold tabular-nums">
-        {value}
-      </span>
-      <button onClick={onInc} aria-label="Increase" className={stepButtonStyles}>
-        <Plus weight="bold" className="size-3.5" />
-      </button>
     </div>
   );
 }

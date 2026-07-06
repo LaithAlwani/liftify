@@ -13,7 +13,12 @@ const isPublicRoute = createRouteMatcher([
 
 export default clerkMiddleware(async (auth, req) => {
   if (!isPublicRoute(req)) {
-    await auth.protect();
+    // Send signed-out users to our own /sign-in screen. Without an explicit URL,
+    // Clerk falls back to its hosted Account Portal (accounts.dev) — the
+    // ClerkProvider's signInUrl only configures the client, not this middleware.
+    await auth.protect({
+      unauthenticatedUrl: new URL("/sign-in", req.url).toString(),
+    });
   }
 });
 

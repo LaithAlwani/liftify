@@ -182,7 +182,7 @@ export default function HomePage() {
   return (
     <div className="container-page flex flex-col gap-6 py-8">
       <Onboarding
-        enabled={workouts.length === 0}
+        enabled={!me.onboardedAt && workouts.length === 0}
         defaultUnits={me.units}
         defaultGoal={me.weeklyGoal}
       />

@@ -192,6 +192,19 @@ export const setPreferences = mutation({
   },
 });
 
+// Marks the welcome flow as done so it only ever shows once per account
+// (not once per device, like the old localStorage flag did). Called whether the
+// user finishes the wizard or skips it.
+export const completeOnboarding = mutation({
+  args: {},
+  handler: async (ctx) => {
+    const user = await getCurrentUserOrThrow(ctx);
+    if (!user.onboardedAt) {
+      await ctx.db.patch(user._id, { onboardedAt: Date.now() });
+    }
+  },
+});
+
 // Wipes all of the current user's data + their user row. The Clerk account is
 // deleted separately by the /api/delete-account route handler.
 export const deleteAccount = mutation({
