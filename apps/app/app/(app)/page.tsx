@@ -19,7 +19,6 @@ import { CountUp } from "@/components/ui/count-up";
 import { ProgressRing } from "@/components/ui/progress-ring";
 import { BodyDiagram } from "@/components/body-diagram";
 import { Onboarding } from "@/components/onboarding";
-import { PRCelebration } from "@/components/pr-celebration";
 import { computeStreak } from "@/lib/streak";
 
 const DAY = 86_400_000;
@@ -152,9 +151,6 @@ export default function HomePage() {
         defaultUnits={me.units}
         defaultGoal={me.weeklyGoal}
       />
-
-      {/* Full-screen celebration when a finished workout set a new record. */}
-      <PRCelebration />
 
       {/* Greeting (desktop keeps the start button on the right) */}
       <div className="flex items-end justify-between gap-4">

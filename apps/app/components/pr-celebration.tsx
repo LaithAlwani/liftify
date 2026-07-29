@@ -1,43 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo } from "react";
 import { Trophy, Lightning, Barbell, X } from "@phosphor-icons/react";
 import type { PR } from "@/lib/prs";
-
-// The key the workout log writes to when a finished session beats a record.
-const HANDOFF_KEY = "liftify:new-prs";
-
-type Handoff = { unit: string; prs: PR[] };
-
-// A full-screen, encouraging moment shown right after a workout that set a new
-// record. It reads the one-shot handoff the log screen leaves in localStorage,
-// celebrates, and clears itself on dismiss. Self-contained so the home page just
-// renders <PRCelebration /> once.
-export function PRCelebration() {
-  const [handoff, setHandoff] = useState<Handoff | null>(null);
-
-  useEffect(() => {
-    try {
-      const raw = localStorage.getItem(HANDOFF_KEY);
-      if (!raw) return;
-      const parsed = JSON.parse(raw) as Handoff;
-      // Clear immediately so it only ever celebrates once.
-      localStorage.removeItem(HANDOFF_KEY);
-      if (parsed?.prs?.length > 0) setHandoff(parsed);
-    } catch {
-      /* ignore corrupt handoff */
-    }
-  }, []);
-
-  if (!handoff) return null;
-  return (
-    <Celebration
-      unit={handoff.unit}
-      prs={handoff.prs}
-      onDismiss={() => setHandoff(null)}
-    />
-  );
-}
 
 const recordCount = (n: number) =>
   n === 1 ? "New personal record!" : `${n} new personal records!`;
@@ -56,7 +21,10 @@ function formatPR(pr: PR, unit: string) {
   return `${pr.value} ${unit}${suffix}`;
 }
 
-function Celebration({
+// A full-screen, encouraging moment shown the instant a completed set beats a
+// record. The workout log renders this directly (per set) with the PRs that set
+// just broke; tapping anywhere (or the button) dismisses it so logging resumes.
+export function Celebration({
   unit,
   prs,
   onDismiss,
@@ -82,10 +50,16 @@ function Celebration({
       role="dialog"
       aria-modal="true"
       aria-label="New personal record"
+      onClick={onDismiss}
     >
+      {/* Confetti fills the whole backdrop; the opaque card keeps its own area
+          clean, so the celebration frames the card rather than sitting on it. */}
       <Confetti />
 
-      <div className="relative w-full max-w-sm animate-pop-in rounded-[26px] border border-spark/40 bg-card p-7 text-center shadow-2xl">
+      <div
+        className="relative w-full max-w-sm animate-pop-in rounded-[26px] border border-spark/40 bg-card p-7 text-center shadow-2xl"
+        onClick={(event) => event.stopPropagation()}
+      >
         <button
           type="button"
           onClick={onDismiss}
@@ -152,24 +126,33 @@ function Celebration({
   );
 }
 
-// A burst of falling, spinning confetti. Colors come from the design tokens so
-// it always matches the theme. Sizes/positions are randomized once on mount.
+// A full-screen shower of falling, spinning confetti. Colors come from the
+// design tokens so it always matches the theme. Each piece starts at a random
+// point in its own fall (negative delay), so the whole background is full of
+// confetti from the first frame instead of only near the top.
 function Confetti() {
   const pieces = useMemo(() => {
     const colors = ["bg-spark", "bg-accent", "bg-spark-lite", "bg-bright"];
-    return Array.from({ length: 40 }, (_, index) => ({
-      id: index,
-      left: Math.random() * 100,
-      delay: Math.random() * 0.6,
-      duration: 2.2 + Math.random() * 1.8,
-      size: 6 + Math.random() * 8,
-      color: colors[index % colors.length],
-      rounded: index % 3 === 0,
-    }));
+    return Array.from({ length: 70 }, (_, index) => {
+      const duration = 2.5 + Math.random() * 2.5;
+      return {
+        id: index,
+        left: Math.random() * 100,
+        // Negative offset so pieces are already mid-fall on the first frame.
+        delay: -(Math.random() * duration),
+        duration,
+        size: 6 + Math.random() * 8,
+        color: colors[index % colors.length],
+        rounded: index % 3 === 0,
+      };
+    });
   }, []);
 
   return (
-    <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden>
+    <div
+      className="pointer-events-none absolute inset-0 overflow-hidden"
+      aria-hidden
+    >
       {pieces.map((piece) => (
         <span
           key={piece.id}

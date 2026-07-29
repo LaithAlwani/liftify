@@ -150,16 +150,23 @@ body {
 
 @keyframes confetti-fall {
   0% {
-    opacity: 1;
+    opacity: 0;
     transform: translateY(-10vh) rotate(0deg);
+  }
+  8% {
+    opacity: 1;
+  }
+  88% {
+    opacity: 1;
   }
   100% {
     opacity: 0;
-    transform: translateY(100vh) rotate(720deg);
+    transform: translateY(110vh) rotate(720deg);
   }
 }
+/* Loops so the whole backdrop stays full of confetti while the card is open. */
 .animate-confetti {
-  animation: confetti-fall linear forwards;
+  animation: confetti-fall linear infinite;
 }
 
 @keyframes rise-in {

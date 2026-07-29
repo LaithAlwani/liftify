@@ -34,8 +34,11 @@ import {
   withBodyweight,
   kindByLibrary,
   type Kind,
+  type Bests,
+  type PR,
 } from "@/lib/prs";
 import { useRest } from "@/components/rest-timer";
+import { Celebration } from "@/components/pr-celebration";
 
 type SetRow = { id: string; reps: string; weight: string; done?: boolean };
 type Entry = { id: string; name: string; kind?: Kind; sets: SetRow[] };
@@ -53,6 +56,24 @@ const uid = () =>
     : `r${counter++}`;
 const toNum = (s: string) => (s.trim() === "" ? 0 : Number(s));
 const round1 = (n: number) => Math.round(n * 10) / 10;
+
+// Fold one bests map into another, keeping the higher of each record. Used to
+// track the running session record as sets are completed one at a time.
+function mergeBests(target: Map<string, Bests>, additions: Map<string, Bests>) {
+  for (const [key, add] of additions) {
+    const current = target.get(key);
+    target.set(
+      key,
+      current
+        ? {
+            maxWeight: Math.max(current.maxWeight, add.maxWeight),
+            best1RM: Math.max(current.best1RM, add.best1RM),
+            maxReps: Math.max(current.maxReps, add.maxReps),
+          }
+        : add,
+    );
+  }
+}
 
 function fmtDuration(totalSec: number) {
   const h = Math.floor(totalSec / 3600);
@@ -134,6 +155,8 @@ function LogWorkout() {
   const [finishPrompt, setFinishPrompt] = useState(false);
   const [discardOpen, setDiscardOpen] = useState(false);
   const [plateOpen, setPlateOpen] = useState(false);
+  // The PRs a just-completed set beat — drives the per-set celebration overlay.
+  const [celebratePrs, setCelebratePrs] = useState<PR[] | null>(null);
   // Which exercise cards are expanded. Adding an exercise collapses the rest.
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [timer, setTimer] = useState<SessionTimer | null>(null);
@@ -341,6 +364,17 @@ function LogWorkout() {
     return map;
   }, [history]);
 
+  // Full all-time records (weight / est. 1RM / reps) from prior history, with
+  // body weight folded into bodyweight moves — the baseline a new set beats.
+  const priorBests = useMemo(
+    () =>
+      bestsByExercise(withBodyweight(history ?? [], kindByName, effBodyWeight)),
+    [history, kindByName, effBodyWeight],
+  );
+  // Records set earlier in THIS session, so a later set only celebrates when it
+  // beats the running high — not every set that clears the old history record.
+  const sessionBestsRef = useRef<Map<string, Bests>>(new Map());
+
   // Look up an exercise's thumbnail / detail / tags by name, for the added cards.
   const exerciseByName = useMemo(() => {
     const m = new Map<
@@ -434,13 +468,53 @@ function LogWorkout() {
   }
   // A set can be finished once it has reps. Weight may be 0 (bodyweight moves).
   const canFinishSet = (s: SetRow) => toNum(s.reps) > 0;
+
+  // When a set is completed, check whether it just beat a record (all-time
+  // history plus anything already set this session). If so, celebrate right
+  // away — each qualifying set pops the overlay, so set 1 and set 2 both cheer.
+  function checkSetForPR(entry: Entry, set: SetRow) {
+    try {
+      const single = {
+        name: entry.name,
+        ...(entry.kind ? { kind: entry.kind } : {}),
+        sets: [{ reps: toNum(set.reps), weight: toNum(set.weight) }],
+      };
+      // Fold body weight in the same way history is folded, so the comparison
+      // is apples-to-apples for bodyweight / dumbbell moves.
+      const foldedExercises = withBodyweight(
+        [{ date: 0, exercises: [single] }],
+        kindByName,
+        effBodyWeight,
+      )[0].exercises;
+
+      const baseline = new Map(priorBests);
+      mergeBests(baseline, sessionBestsRef.current);
+      const prs = detectPRs(foldedExercises, baseline);
+
+      // Track this set as the new running high — but only for exercises that
+      // already have a history baseline, so a brand-new exercise (no prior
+      // record to break) never starts celebrating its own first sets.
+      const setBests = bestsByExercise([{ date: 0, exercises: foldedExercises }]);
+      const trackable = new Map<string, Bests>();
+      for (const [key, best] of setBests) {
+        if (priorBests.has(key)) trackable.set(key, best);
+      }
+      mergeBests(sessionBestsRef.current, trackable);
+
+      if (prs.length > 0) setCelebratePrs(prs);
+    } catch {
+      /* PR detection is best-effort — never block logging a set. */
+    }
+  }
+
   // Mark a set complete/incomplete; completing one kicks off the rest timer.
   function setSetDone(entryId: string, setId: string, done: boolean) {
     if (done) {
-      const set = entries
-        .find((e) => e.id === entryId)
-        ?.sets.find((s) => s.id === setId);
-      if (!set || !canFinishSet(set)) return; // ignore — needs reps & weight
+      const entry = entries.find((e) => e.id === entryId);
+      const set = entry?.sets.find((s) => s.id === setId);
+      if (!entry || !set || !canFinishSet(set)) return; // needs reps & weight
+      // Editing an old workout shouldn't re-celebrate historical lifts.
+      if (!isEditing) checkSetForPR(entry, set);
     }
     setEntries((prev) =>
       prev.map((e) =>
@@ -532,29 +606,8 @@ function LogWorkout() {
       if (isEditing && editId) {
         await update({ workoutId: editId as Id<"workouts">, name, exercises });
       } else {
-        // Detect PRs vs prior history (with body weight folded into bodyweight
-        // moves), then hand off to the home celebration.
-        try {
-          const priorLoaded = withBodyweight(
-            history ?? [],
-            kindByName,
-            effBodyWeight,
-          );
-          const nowLoaded = withBodyweight(
-            [{ date: 0, exercises }],
-            kindByName,
-            effBodyWeight,
-          )[0].exercises;
-          const prs = detectPRs(nowLoaded, bestsByExercise(priorLoaded));
-          if (prs.length > 0) {
-            localStorage.setItem(
-              "liftify:new-prs",
-              JSON.stringify({ unit, prs }),
-            );
-          }
-        } catch {
-          /* PR detection is best-effort */
-        }
+        // PRs are celebrated per-set as they happen (see checkSetForPR), so
+        // there's no end-of-workout handoff to write here anymore.
         await create({ name, durationSec, exercises });
       }
       try {
@@ -1262,6 +1315,15 @@ function LogWorkout() {
         onAdd={addExercise}
         addLabel="Add to workout"
       />
+
+      {/* Per-set celebration — pops the instant a completed set beats a record. */}
+      {celebratePrs && (
+        <Celebration
+          unit={unit}
+          prs={celebratePrs}
+          onDismiss={() => setCelebratePrs(null)}
+        />
+      )}
 
       {finishPrompt && (
         <div
