@@ -28,11 +28,20 @@ import { IconButton } from "@/components/ui/icon-button";
 import { PlateCalculator } from "@/components/plate-calculator";
 import { ExercisePicker } from "@/components/exercise-picker";
 import { ExerciseDetailModal } from "@/components/exercise-detail-modal";
-import { bestsByExercise, detectPRs, withBodyweight } from "@/lib/prs";
+import {
+  bestsByExercise,
+  detectPRs,
+  withBodyweight,
+  kindByLibrary,
+  type Kind,
+  type Bests,
+  type PR,
+} from "@/lib/prs";
 import { useRest } from "@/components/rest-timer";
+import { Celebration } from "@/components/pr-celebration";
 
 type SetRow = { id: string; reps: string; weight: string; done?: boolean };
-type Entry = { id: string; name: string; sets: SetRow[] };
+type Entry = { id: string; name: string; kind?: Kind; sets: SetRow[] };
 // Session clock: `base` ms already counted, plus the live segment since
 // `runningSince` (null while paused). Elapsed = base + (now - runningSince).
 type SessionTimer = { base: number; runningSince: number | null };
@@ -47,6 +56,24 @@ const uid = () =>
     : `r${counter++}`;
 const toNum = (s: string) => (s.trim() === "" ? 0 : Number(s));
 const round1 = (n: number) => Math.round(n * 10) / 10;
+
+// Fold one bests map into another, keeping the higher of each record. Used to
+// track the running session record as sets are completed one at a time.
+function mergeBests(target: Map<string, Bests>, additions: Map<string, Bests>) {
+  for (const [key, add] of additions) {
+    const current = target.get(key);
+    target.set(
+      key,
+      current
+        ? {
+            maxWeight: Math.max(current.maxWeight, add.maxWeight),
+            best1RM: Math.max(current.best1RM, add.best1RM),
+            maxReps: Math.max(current.maxReps, add.maxReps),
+          }
+        : add,
+    );
+  }
+}
 
 function fmtDuration(totalSec: number) {
   const h = Math.floor(totalSec / 3600);
@@ -128,6 +155,8 @@ function LogWorkout() {
   const [finishPrompt, setFinishPrompt] = useState(false);
   const [discardOpen, setDiscardOpen] = useState(false);
   const [plateOpen, setPlateOpen] = useState(false);
+  // The PRs a just-completed set beat — drives the per-set celebration overlay.
+  const [celebratePrs, setCelebratePrs] = useState<PR[] | null>(null);
   // Which exercise cards are expanded. Adding an exercise collapses the rest.
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [timer, setTimer] = useState<SessionTimer | null>(null);
@@ -135,6 +164,15 @@ function LogWorkout() {
   const rest = useRest();
 
   const unit = me?.units ?? "lb";
+
+  // Library-inferred weight modes (bodyweight / dumbbell) + the lifter's body
+  // weight. Declared up here because the edit / repeat / template loaders below
+  // default each exercise's mode from it.
+  const kindByName = useMemo(
+    () => kindByLibrary(allExercises ?? []),
+    [allExercises],
+  );
+  const effBodyWeight = latestBodyWeight ?? me?.bodyWeight ?? 0;
 
   // Persist the in-progress NEW workout so leaving and returning keeps it.
   // (Edit mode loads from the saved workout instead — no draft.)
@@ -206,6 +244,7 @@ function LogWorkout() {
       existingWorkout.exercises.map((ex) => ({
         id: uid(),
         name: ex.name,
+        kind: ex.kind ?? kindByName.get(ex.name.toLowerCase()),
         sets: ex.sets.map((s) => ({
           id: uid(),
           reps: String(s.reps),
@@ -228,6 +267,7 @@ function LogWorkout() {
       existingWorkout.exercises.map((ex) => ({
         id: uid(),
         name: ex.name,
+        kind: ex.kind ?? kindByName.get(ex.name.toLowerCase()),
         sets: ex.sets.map((s) => ({
           id: uid(),
           reps: String(s.reps),
@@ -248,6 +288,7 @@ function LogWorkout() {
       startTemplate.exercises.map((ex) => ({
         id: uid(),
         name: ex.name,
+        kind: ex.kind ?? kindByName.get(ex.name.toLowerCase()),
         sets: ex.sets.map((s) => ({
           id: uid(),
           reps: String(s.reps),
@@ -323,18 +364,16 @@ function LogWorkout() {
     return map;
   }, [history]);
 
-  // Names of bodyweight-based moves + the lifter's effective body weight, for
-  // folding total load into PR detection.
-  const bodyweightNames = useMemo(
+  // Full all-time records (weight / est. 1RM / reps) from prior history, with
+  // body weight folded into bodyweight moves — the baseline a new set beats.
+  const priorBests = useMemo(
     () =>
-      new Set(
-        (allExercises ?? [])
-          .filter((e) => e.equipment === "body only" && e.mechanic === "compound")
-          .map((e) => e.name.toLowerCase()),
-      ),
-    [allExercises],
+      bestsByExercise(withBodyweight(history ?? [], kindByName, effBodyWeight)),
+    [history, kindByName, effBodyWeight],
   );
-  const effBodyWeight = latestBodyWeight ?? me?.bodyWeight ?? 0;
+  // Records set earlier in THIS session, so a later set only celebrates when it
+  // beats the running high — not every set that clears the old history record.
+  const sessionBestsRef = useRef<Map<string, Bests>>(new Map());
 
   // Look up an exercise's thumbnail / detail / tags by name, for the added cards.
   const exerciseByName = useMemo(() => {
@@ -385,9 +424,10 @@ function LogWorkout() {
     // Pre-fill the first set's weight with your best for this exercise, if known.
     const best = bestByExercise.get(exName.toLowerCase());
     const weight = best !== undefined ? String(round1(best)) : "";
+    const kind = kindByName.get(exName.toLowerCase());
     setEntries((prev) => [
       ...prev,
-      { id, name: exName, sets: [{ id: uid(), reps: "", weight, done: false }] },
+      { id, name: exName, kind, sets: [{ id: uid(), reps: "", weight, done: false }] },
     ]);
     // Before the workout starts, cards stay collapsed (planning only).
     if (started) setExpanded(new Set([id]));
@@ -404,6 +444,12 @@ function LogWorkout() {
   }
   function removeExercise(id: string) {
     setEntries((prev) => prev.filter((e) => e.id !== id));
+  }
+  // Change how an exercise's weight is read (standard / bodyweight / dumbbell).
+  function setEntryKind(id: string, kind: Kind | undefined) {
+    setEntries((prev) =>
+      prev.map((e) => (e.id === id ? { ...e, kind } : e)),
+    );
   }
   function addSet(entryId: string) {
     setEntries((prev) =>
@@ -422,13 +468,53 @@ function LogWorkout() {
   }
   // A set can be finished once it has reps. Weight may be 0 (bodyweight moves).
   const canFinishSet = (s: SetRow) => toNum(s.reps) > 0;
+
+  // When a set is completed, check whether it just beat a record (all-time
+  // history plus anything already set this session). If so, celebrate right
+  // away — each qualifying set pops the overlay, so set 1 and set 2 both cheer.
+  function checkSetForPR(entry: Entry, set: SetRow) {
+    try {
+      const single = {
+        name: entry.name,
+        ...(entry.kind ? { kind: entry.kind } : {}),
+        sets: [{ reps: toNum(set.reps), weight: toNum(set.weight) }],
+      };
+      // Fold body weight in the same way history is folded, so the comparison
+      // is apples-to-apples for bodyweight / dumbbell moves.
+      const foldedExercises = withBodyweight(
+        [{ date: 0, exercises: [single] }],
+        kindByName,
+        effBodyWeight,
+      )[0].exercises;
+
+      const baseline = new Map(priorBests);
+      mergeBests(baseline, sessionBestsRef.current);
+      const prs = detectPRs(foldedExercises, baseline);
+
+      // Track this set as the new running high — but only for exercises that
+      // already have a history baseline, so a brand-new exercise (no prior
+      // record to break) never starts celebrating its own first sets.
+      const setBests = bestsByExercise([{ date: 0, exercises: foldedExercises }]);
+      const trackable = new Map<string, Bests>();
+      for (const [key, best] of setBests) {
+        if (priorBests.has(key)) trackable.set(key, best);
+      }
+      mergeBests(sessionBestsRef.current, trackable);
+
+      if (prs.length > 0) setCelebratePrs(prs);
+    } catch {
+      /* PR detection is best-effort — never block logging a set. */
+    }
+  }
+
   // Mark a set complete/incomplete; completing one kicks off the rest timer.
   function setSetDone(entryId: string, setId: string, done: boolean) {
     if (done) {
-      const set = entries
-        .find((e) => e.id === entryId)
-        ?.sets.find((s) => s.id === setId);
-      if (!set || !canFinishSet(set)) return; // ignore — needs reps & weight
+      const entry = entries.find((e) => e.id === entryId);
+      const set = entry?.sets.find((s) => s.id === setId);
+      if (!entry || !set || !canFinishSet(set)) return; // needs reps & weight
+      // Editing an old workout shouldn't re-celebrate historical lifts.
+      if (!isEditing) checkSetForPR(entry, set);
     }
     setEntries((prev) =>
       prev.map((e) =>
@@ -509,6 +595,7 @@ function LogWorkout() {
     setError(null);
     const exercises = entries.map((e) => ({
       name: e.name,
+      ...(e.kind ? { kind: e.kind } : {}),
       sets: e.sets.map((s) => ({
         reps: toNum(s.reps),
         weight: toNum(s.weight),
@@ -519,29 +606,8 @@ function LogWorkout() {
       if (isEditing && editId) {
         await update({ workoutId: editId as Id<"workouts">, name, exercises });
       } else {
-        // Detect PRs vs prior history (with body weight folded into bodyweight
-        // moves), then hand off to the home celebration.
-        try {
-          const priorLoaded = withBodyweight(
-            history ?? [],
-            bodyweightNames,
-            effBodyWeight,
-          );
-          const nowLoaded = withBodyweight(
-            [{ date: 0, exercises }],
-            bodyweightNames,
-            effBodyWeight,
-          )[0].exercises;
-          const prs = detectPRs(nowLoaded, bestsByExercise(priorLoaded));
-          if (prs.length > 0) {
-            localStorage.setItem(
-              "liftify:new-prs",
-              JSON.stringify({ unit, prs }),
-            );
-          }
-        } catch {
-          /* PR detection is best-effort */
-        }
+        // PRs are celebrated per-set as they happen (see checkSetForPR), so
+        // there's no end-of-workout handoff to write here anymore.
         await create({ name, durationSec, exercises });
       }
       try {
@@ -570,15 +636,20 @@ function LogWorkout() {
     (total, entry) => total + entry.sets.filter((s) => s.done).length,
     0,
   );
-  const sessionVolume = entries.reduce(
-    (total, entry) =>
-      total +
-      entry.sets.reduce(
-        (n, s) => (s.done ? n + toNum(s.reps) * toNum(s.weight) : n),
-        0,
-      ),
-    0,
-  );
+  const sessionVolume = entries.reduce((total, entry) => {
+    // Volume honors the exercise's mode: bodyweight folds in body weight,
+    // dumbbell counts both hands. Matches lib/prs.ts exerciseVolume.
+    const sideMultiplier = entry.kind === "dumbbell" ? 2 : 1;
+    const entryVolume = entry.sets.reduce((n, s) => {
+      if (!s.done) return n;
+      const load =
+        entry.kind === "bodyweight"
+          ? toNum(s.weight) + effBodyWeight
+          : toNum(s.weight);
+      return n + toNum(s.reps) * load * sideMultiplier;
+    }, 0);
+    return total + entryVolume;
+  }, 0);
   // Live PR count: exercises whose best done set beats their all-time best.
   const newPrCount = entries.reduce((count, entry) => {
     const best = bestByExercise.get(entry.name.toLowerCase());
@@ -868,16 +939,28 @@ function LogWorkout() {
                       </button>
                     </div>
 
-                    {/* Column head */}
+                    {/* How the weight is read for this exercise. */}
+                    <ModeControl
+                      kind={entry.kind}
+                      bodyWeight={effBodyWeight}
+                      unit={unit}
+                      onChange={(kind) => setEntryKind(entry.id, kind)}
+                    />
+
+                    {/* Column head — labels adapt to the exercise mode. */}
                     <div className="flex items-center gap-3 px-4 pb-1.5 pt-3">
                       <span className="mono-label w-7 text-[9px] text-dim">
                         SET
                       </span>
                       <span className="mono-label flex-1 text-center text-[9px] text-dim">
-                        REPS
+                        {entry.kind === "dumbbell" ? "REPS / SIDE" : "REPS"}
                       </span>
                       <span className="mono-label flex-1 text-center text-[9px] text-dim">
-                        WEIGHT
+                        {entry.kind === "bodyweight"
+                          ? "+ ADDED"
+                          : entry.kind === "dumbbell"
+                            ? "PER HAND"
+                            : "WEIGHT"}
                       </span>
                       <span className="mono-label w-9 text-right text-[9px] text-dim">
                         DONE
@@ -1233,6 +1316,15 @@ function LogWorkout() {
         addLabel="Add to workout"
       />
 
+      {/* Per-set celebration — pops the instant a completed set beats a record. */}
+      {celebratePrs && (
+        <Celebration
+          unit={unit}
+          prs={celebratePrs}
+          onDismiss={() => setCelebratePrs(null)}
+        />
+      )}
+
       {finishPrompt && (
         <div
           className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-4 sm:items-center"
@@ -1434,6 +1526,61 @@ function ExerciseThumb({
     >
       <Barbell className="size-5" />
     </span>
+  );
+}
+
+// The per-exercise weight-mode control on the active card. Standard = total
+// load; Bodyweight = weight added on top of body weight; Dumbbell = per-hand.
+const MODE_OPTIONS: { key: Kind | undefined; label: string }[] = [
+  { key: undefined, label: "Standard" },
+  { key: "bodyweight", label: "Bodyweight" },
+  { key: "dumbbell", label: "Dumbbell" },
+];
+
+function ModeControl({
+  kind,
+  bodyWeight,
+  unit,
+  onChange,
+}: {
+  kind?: Kind;
+  bodyWeight: number;
+  unit: string;
+  onChange: (kind: Kind | undefined) => void;
+}) {
+  const hint =
+    kind === "bodyweight"
+      ? bodyWeight > 0
+        ? `Weight adds on top of your body weight (${round1(bodyWeight)} ${unit})`
+        : "Log any weight added on top of bodyweight (0 = just you)"
+      : kind === "dumbbell"
+        ? "Enter one dumbbell's weight — both hands count toward volume"
+        : null;
+  return (
+    <div className="flex flex-col gap-1.5 px-4 pt-3">
+      <div className="flex gap-1 rounded-full border border-border-strong bg-surface-3 p-1">
+        {MODE_OPTIONS.map((option) => {
+          const active = kind === option.key;
+          return (
+            <button
+              key={option.label}
+              type="button"
+              onClick={() => onChange(option.key)}
+              className={`flex-1 rounded-full px-2 py-1.5 font-mono text-[10px] font-semibold uppercase tracking-[0.04em] transition-colors ${
+                active
+                  ? "bg-accent text-accent-foreground"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              {option.label}
+            </button>
+          );
+        })}
+      </div>
+      {hint && (
+        <p className="text-[10px] leading-snug text-muted-foreground">{hint}</p>
+      )}
+    </div>
   );
 }
 

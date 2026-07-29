@@ -10,12 +10,10 @@ import {
   Timer,
   Target,
   ChartBar,
-  Trophy,
-  X,
   Play,
   Plus,
 } from "@phosphor-icons/react";
-import { withBodyweight, type PR } from "@/lib/prs";
+import { kindByLibrary, workoutVolume } from "@/lib/prs";
 import { StatCard } from "@/components/ui/stat-card";
 import { CountUp } from "@/components/ui/count-up";
 import { ProgressRing } from "@/components/ui/progress-ring";
@@ -38,12 +36,6 @@ function startOfWeek(ms: number) {
   const fromMonday = (d.getDay() + 6) % 7;
   d.setHours(0, 0, 0, 0);
   return d.getTime() - fromMonday * DAY;
-}
-function workoutVolume(w: { exercises: { sets: { reps: number; weight: number }[] }[] }) {
-  return w.exercises.reduce(
-    (s, e) => s + e.sets.reduce((ss, set) => ss + set.reps * set.weight, 0),
-    0,
-  );
 }
 function fmtWeekday(ms: number) {
   return new Date(ms).toLocaleDateString(undefined, { weekday: "short" });
@@ -74,50 +66,23 @@ export default function HomePage() {
     }
   }, []);
 
-  // Celebrate PRs handed off by the just-finished workout (one-shot).
-  const [prCelebration, setPrCelebration] = useState<{
-    unit: string;
-    prs: PR[];
-  } | null>(null);
-  useEffect(() => {
-    try {
-      const raw = localStorage.getItem("liftify:new-prs");
-      if (raw) {
-        setPrCelebration(JSON.parse(raw));
-        localStorage.removeItem("liftify:new-prs");
-      }
-    } catch {
-      /* ignore */
-    }
-  }, []);
-
   const unit = me?.units ?? "lb";
   const name = me?.firstName ?? "lifter";
   const weeklyGoal = me?.weeklyGoal ?? DEFAULT_WEEKLY_GOAL;
 
-  // Fold body weight into bodyweight moves so volume reflects total load.
-  const bwNames = useMemo(
-    () =>
-      new Set(
-        (exercises ?? [])
-          .filter((e) => e.equipment === "body only" && e.mechanic === "compound")
-          .map((e) => e.name.toLowerCase()),
-      ),
+  // Resolve each exercise's kind from the library so volume reflects real work:
+  // bodyweight moves fold in body weight, dumbbell moves count both hands.
+  const kindByName = useMemo(
+    () => kindByLibrary(exercises ?? []),
     [exercises],
   );
   const effBodyWeight = latestBodyWeight ?? me?.bodyWeight ?? 0;
-  const loadWorkouts = useMemo(
-    () => withBodyweight(workouts ?? [], bwNames, effBodyWeight),
-    [workouts, bwNames, effBodyWeight],
-  );
 
   const weekStart = startOfWeek(Date.now());
   const thisWeek = (workouts ?? []).filter((w) => w.date >= weekStart);
   const weekCount = thisWeek.length;
   const weekVolume = Math.round(
-    loadWorkouts
-      .filter((w) => w.date >= weekStart)
-      .reduce((s, w) => s + workoutVolume(w), 0),
+    thisWeek.reduce((s, w) => s + workoutVolume(w, kindByName, effBodyWeight), 0),
   );
   const weekTime = thisWeek.reduce((s, w) => s + (w.durationSec ?? 0), 0);
   // Streak counts workouts AND recovery check-ins (rest/cardio/stretch).
@@ -134,9 +99,9 @@ export default function HomePage() {
   const weekData = DAY_LABELS.map((label, i) => {
     const dayStart = weekStart + i * DAY;
     const dayEnd = dayStart + DAY;
-    const vol = loadWorkouts
+    const vol = (workouts ?? [])
       .filter((w) => w.date >= dayStart && w.date < dayEnd)
-      .reduce((s, w) => s + workoutVolume(w), 0);
+      .reduce((s, w) => s + workoutVolume(w, kindByName, effBodyWeight), 0);
     return { label, volume: Math.round(vol) };
   });
   const maxDayVolume = Math.max(...weekData.map((d) => d.volume), 0);
@@ -144,9 +109,9 @@ export default function HomePage() {
 
   // Real week-over-week volume trend (only shown when last week has data).
   const prevWeekStart = weekStart - 7 * DAY;
-  const prevWeekVolume = loadWorkouts
+  const prevWeekVolume = (workouts ?? [])
     .filter((w) => w.date >= prevWeekStart && w.date < weekStart)
-    .reduce((s, w) => s + workoutVolume(w), 0);
+    .reduce((s, w) => s + workoutVolume(w, kindByName, effBodyWeight), 0);
   const trendPercent =
     prevWeekVolume > 0
       ? Math.round(((weekVolume - prevWeekVolume) / prevWeekVolume) * 100)
@@ -186,39 +151,6 @@ export default function HomePage() {
         defaultUnits={me.units}
         defaultGoal={me.weeklyGoal}
       />
-
-      {prCelebration && prCelebration.prs.length > 0 && (
-        <div className="relative overflow-hidden rounded-[14px] border border-spark/40 bg-spark/10 p-4">
-          <button
-            onClick={() => setPrCelebration(null)}
-            aria-label="Dismiss"
-            className="absolute right-3 top-3 flex size-7 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-          >
-            <X className="size-4" />
-          </button>
-          <div className="flex items-center gap-2 text-spark">
-            <Trophy weight="fill" className="size-5" />
-            <span className="font-display font-black tracking-tight">
-              {prCelebration.prs.length === 1
-                ? "New personal record!"
-                : `${prCelebration.prs.length} new personal records!`}
-            </span>
-          </div>
-          <ul className="mt-2 flex flex-col gap-1 pr-6 text-sm">
-            {prCelebration.prs.map((pr) => (
-              <li key={`${pr.name}-${pr.type}`}>
-                <span className="font-medium">{pr.name}</span> —{" "}
-                {pr.type === "reps"
-                  ? `${pr.value} reps`
-                  : `${pr.value} ${prCelebration.unit}${pr.type === "strength" ? " est. 1RM" : ""}`}{" "}
-                <span className="text-muted-foreground">
-                  (was {pr.previous})
-                </span>
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
 
       {/* Greeting (desktop keeps the start button on the right) */}
       <div className="flex items-end justify-between gap-4">

@@ -11,6 +11,7 @@ import {
   WarningCircle,
   DownloadSimple,
   CaretLeft,
+  Check,
 } from "@phosphor-icons/react";
 import { PushToggle } from "@/components/push-toggle";
 import { Button } from "@/components/ui/button";
@@ -20,6 +21,7 @@ import {
   Switch,
   type SegmentOption,
 } from "@/components/ui/form-controls";
+import { EQUIPMENT_OPTIONS } from "@/lib/presets";
 
 // Shared style constants so the whole page is easy to re-theme in one place.
 const cardStyles =
@@ -106,6 +108,7 @@ export default function SettingsPage() {
   const me = useQuery(api.users.me, {});
   const setUnits = useMutation(api.users.setUnits);
   const setPrefs = useMutation(api.users.setPreferences);
+  const saveEquipment = useMutation(api.users.setEquipment);
   const deleteData = useMutation(api.users.deleteAccount);
   const convex = useConvex();
   const { user } = useUser();
@@ -158,6 +161,21 @@ export default function SettingsPage() {
     const v = Math.min(600, Math.max(15, n));
     setRest(v);
     setPrefs({ restSeconds: v });
+  }
+
+  // The user's weight room — seeded from the server, saved on each toggle.
+  const [equipmentKeys, setEquipmentKeys] = useState<Set<string>>(new Set());
+  useEffect(() => {
+    if (me?.equipment) setEquipmentKeys(new Set(me.equipment));
+  }, [me?.equipment]);
+  function toggleEquipment(key: string) {
+    setEquipmentKeys((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      saveEquipment({ equipment: [...next] });
+      return next;
+    });
   }
 
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -292,6 +310,46 @@ export default function SettingsPage() {
               if (u !== unit) setUnits({ units: u });
             }}
           />
+        </div>
+      </section>
+
+      {/* Weight room — which equipment the user has, powers starter days. */}
+      <section className={cardStyles}>
+        <div>
+          <h3 className={cardTitleStyles}>Your weight room</h3>
+          <p className={rowDescStyles}>
+            What you have to train with. Bodyweight moves are always included.
+          </p>
+        </div>
+        <div className="grid grid-cols-2 gap-2">
+          {EQUIPMENT_OPTIONS.map((option) => {
+            const selected = equipmentKeys.has(option.key);
+            const base =
+              "flex items-center justify-between gap-2 rounded-2xl border px-3.5 py-3 text-left text-sm font-medium transition-colors";
+            const state = selected
+              ? "border-accent bg-accent/10 text-foreground"
+              : "border-border bg-surface-3 text-muted-foreground hover:text-foreground";
+            return (
+              <button
+                key={option.key}
+                type="button"
+                onClick={() => toggleEquipment(option.key)}
+                aria-pressed={selected}
+                className={`${base} ${state}`}
+              >
+                <span className="truncate">{option.label}</span>
+                <span
+                  className={`flex size-5 shrink-0 items-center justify-center rounded-full border ${
+                    selected
+                      ? "border-accent bg-accent text-accent-foreground"
+                      : "border-border-strong"
+                  }`}
+                >
+                  {selected && <Check weight="bold" className="size-3" />}
+                </span>
+              </button>
+            );
+          })}
         </div>
       </section>
 

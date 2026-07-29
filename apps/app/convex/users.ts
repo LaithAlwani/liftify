@@ -192,6 +192,19 @@ export const setPreferences = mutation({
   },
 });
 
+// Save the user's personal weight room (which equipment they have). Stored as
+// user-facing keys like "barbell" / "dumbbell"; bodyweight is always available.
+// Set during onboarding and editable later in settings.
+export const setEquipment = mutation({
+  args: { equipment: v.array(v.string()) },
+  handler: async (ctx, { equipment }) => {
+    const user = await getCurrentUserOrThrow(ctx);
+    // De-duplicate and drop blanks so the stored list stays clean.
+    const cleaned = [...new Set(equipment.map((key) => key.trim()).filter(Boolean))];
+    await ctx.db.patch(user._id, { equipment: cleaned });
+  },
+});
+
 // Marks the welcome flow as done so it only ever shows once per account
 // (not once per device, like the old localStorage flag did). Called whether the
 // user finishes the wizard or skips it.

@@ -13,17 +13,26 @@ const setEntry = v.object({
   weight: v.number(),
 });
 
+const exerciseKind = v.union(v.literal("bodyweight"), v.literal("dumbbell"));
+
 const exerciseEntry = v.object({
   name: v.string(),
+  kind: v.optional(exerciseKind),
   sets: v.array(setEntry),
 });
 
-type ExerciseInput = { name: string; sets: { reps: number; weight: number }[] };
+type ExerciseInput = {
+  name: string;
+  kind?: "bodyweight" | "dumbbell";
+  sets: { reps: number; weight: number }[];
+};
 
 function cleanExercises(exercises: ExerciseInput[]) {
   return exercises
     .map((e) => ({
       name: e.name.trim(),
+      // Only keep a kind when it's set — a standard exercise stores no field.
+      ...(e.kind ? { kind: e.kind } : {}),
       sets: e.sets
         .map((s) => ({
           reps: Math.max(0, Math.round(s.reps)),

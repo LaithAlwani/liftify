@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useMutation, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
@@ -18,11 +18,19 @@ import {
 import { Button } from "@/components/ui/button";
 import { IconButton } from "@/components/ui/icon-button";
 import { ExercisePicker } from "@/components/exercise-picker";
+import { kindByLibrary, type Kind } from "@/lib/prs";
 
 // Reps/weight are stored as strings while editing (raw input), converted to
 // numbers on save — same approach as the workout log screen.
 type SetRow = { id: string; reps: string; weight: string };
-type Entry = { id: string; name: string; sets: SetRow[] };
+type Entry = { id: string; name: string; kind?: Kind; sets: SetRow[] };
+
+// A short label for an exercise's weight mode (null for standard).
+function kindLabel(kind?: Kind) {
+  if (kind === "bodyweight") return "Bodyweight";
+  if (kind === "dumbbell") return "Dumbbell";
+  return null;
+}
 
 let counter = 0;
 const uid = () =>
@@ -50,6 +58,7 @@ export function TemplateEditor({ templateId }: { templateId?: string }) {
   const isEditing = !!templateId;
 
   const me = useQuery(api.users.me, {});
+  const allExercises = useQuery(api.exercises.list, {});
   const existing = useQuery(
     api.templates.getById,
     templateId ? { templateId: templateId as Id<"templates"> } : "skip",
@@ -65,6 +74,13 @@ export function TemplateEditor({ templateId }: { templateId?: string }) {
 
   const unit = me?.units ?? "lb";
 
+  // Library-inferred weight modes, so newly added exercises pick up the right
+  // bodyweight / dumbbell mode automatically.
+  const kindByName = useMemo(
+    () => kindByLibrary(allExercises ?? []),
+    [allExercises],
+  );
+
   // Edit mode: prefill from the saved template, once.
   const editLoaded = useRef(false);
   useEffect(() => {
@@ -74,6 +90,7 @@ export function TemplateEditor({ templateId }: { templateId?: string }) {
       existing.exercises.map((exercise) => ({
         id: uid(),
         name: exercise.name,
+        kind: exercise.kind ?? kindByName.get(exercise.name.toLowerCase()),
         sets: exercise.sets.map((set) => ({
           id: uid(),
           reps: String(set.reps),
@@ -82,7 +99,7 @@ export function TemplateEditor({ templateId }: { templateId?: string }) {
       })),
     );
     editLoaded.current = true;
-  }, [isEditing, existing]);
+  }, [isEditing, existing, kindByName]);
 
   const addedNames = new Set(entries.map((entry) => entry.name));
 
@@ -97,6 +114,7 @@ export function TemplateEditor({ templateId }: { templateId?: string }) {
       {
         id: uid(),
         name: exerciseName,
+        kind: kindByName.get(exerciseName.toLowerCase()),
         sets: [{ id: uid(), reps: DEFAULT_TARGET_REPS, weight: "" }],
       },
     ]);
@@ -159,6 +177,7 @@ export function TemplateEditor({ templateId }: { templateId?: string }) {
     }
     const exercises = entries.map((entry) => ({
       name: entry.name,
+      ...(entry.kind ? { kind: entry.kind } : {}),
       sets: entry.sets.map((set) => ({
         reps: toNum(set.reps),
         weight: toNum(set.weight),
@@ -221,8 +240,15 @@ export function TemplateEditor({ templateId }: { templateId?: string }) {
               className="overflow-hidden rounded-2xl border border-border bg-card"
             >
               <div className="flex items-center gap-3 border-b border-muted p-4">
-                <span className="min-w-0 flex-1 truncate font-display text-[15px] font-extrabold">
-                  {entry.name}
+                <span className="flex min-w-0 flex-1 flex-col">
+                  <span className="truncate font-display text-[15px] font-extrabold">
+                    {entry.name}
+                  </span>
+                  {kindLabel(entry.kind) && (
+                    <span className="mono-label text-[9px] text-muted-foreground">
+                      {kindLabel(entry.kind)}
+                    </span>
+                  )}
                 </span>
                 <IconButton
                   variant="danger"

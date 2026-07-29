@@ -1,22 +1,61 @@
 // Personal-record + estimated-1RM helpers, computed client-side from workouts.
 
+// How an exercise's weight is read. Absent = "standard" (weight is total load).
+//   bodyweight → weight is the ADDED load on top of body weight (0 = just BW).
+//   dumbbell   → weight is per-hand; both hands count toward volume.
+export type Kind = "bodyweight" | "dumbbell";
+
 export type SetLite = { reps: number; weight: number };
-export type ExerciseLite = { name: string; sets: SetLite[] };
+export type ExerciseLite = { name: string; kind?: Kind; sets: SetLite[] };
 export type WorkoutLite = { date: number; exercises: ExerciseLite[] };
 
-// Add the lifter's body weight to the logged (added) weight for bodyweight-based
-// moves, so volume / 1RM / PRs reflect total load. No-op without a body weight
-// or when nothing is bodyweight-based (then the logged weight stands as-is).
+// A minimal library row — just what we need to infer a kind from the catalogue.
+type LibraryRow = {
+  name: string;
+  equipment?: string | null;
+  mechanic?: string | null;
+};
+
+// Build a name → kind map from the exercise library, used as a fallback for
+// logs saved before per-exercise kinds existed. Body-only COMPOUND moves are
+// "bodyweight" (their load scales with body weight — pull-ups, dips, push-ups);
+// dumbbell moves are "dumbbell". Isolation body-only moves (plank, crunch) stay
+// standard so they keep tracking reps, not an odd body-weight "load".
+export function kindByLibrary(library: LibraryRow[]): Map<string, Kind> {
+  const map = new Map<string, Kind>();
+  for (const exercise of library) {
+    const key = exercise.name.toLowerCase();
+    if (exercise.equipment === "body only" && exercise.mechanic === "compound") {
+      map.set(key, "bodyweight");
+    } else if (exercise.equipment === "dumbbell") {
+      map.set(key, "dumbbell");
+    }
+  }
+  return map;
+}
+
+// The kind for an exercise: its own stored kind, else the library fallback.
+export function resolveKind(
+  exercise: { name: string; kind?: Kind },
+  kindByName: Map<string, Kind>,
+): Kind | undefined {
+  return exercise.kind ?? kindByName.get(exercise.name.toLowerCase());
+}
+
+// Add the lifter's body weight to the logged (added) weight for bodyweight
+// moves, so 1RM / PRs reflect total load. Dumbbell and standard weights are left
+// as-is (they are the number the lifter actually PRs on). No-op without a body
+// weight. Used before PR detection and the progress strength chart.
 export function withBodyweight(
   workouts: WorkoutLite[],
-  bodyweightNames: Set<string>,
+  kindByName: Map<string, Kind>,
   bodyWeight: number,
 ): WorkoutLite[] {
-  if (!bodyWeight || bodyweightNames.size === 0) return workouts;
+  if (!bodyWeight) return workouts;
   return workouts.map((w) => ({
     ...w,
     exercises: w.exercises.map((ex) =>
-      bodyweightNames.has(ex.name.toLowerCase())
+      resolveKind(ex, kindByName) === "bodyweight"
         ? {
             ...ex,
             sets: ex.sets.map((s) => ({
@@ -27,6 +66,34 @@ export function withBodyweight(
         : ex,
     ),
   }));
+}
+
+// Total load moved for one exercise, honoring its kind: bodyweight folds body
+// weight into each rep; dumbbell counts both hands (×2). Use this everywhere
+// volume is shown so the number reflects real work done.
+export function exerciseVolume(
+  exercise: ExerciseLite,
+  kindByName: Map<string, Kind>,
+  bodyWeight: number,
+): number {
+  const kind = resolveKind(exercise, kindByName);
+  const sideMultiplier = kind === "dumbbell" ? 2 : 1;
+  return exercise.sets.reduce((sum, set) => {
+    const load = kind === "bodyweight" ? set.weight + bodyWeight : set.weight;
+    return sum + set.reps * load * sideMultiplier;
+  }, 0);
+}
+
+// Total volume for a whole workout (sum of its exercises).
+export function workoutVolume(
+  workout: WorkoutLite,
+  kindByName: Map<string, Kind>,
+  bodyWeight: number,
+): number {
+  return workout.exercises.reduce(
+    (sum, exercise) => sum + exerciseVolume(exercise, kindByName, bodyWeight),
+    0,
+  );
 }
 
 // Epley estimate: a 1-rep-max projection from a working set.
