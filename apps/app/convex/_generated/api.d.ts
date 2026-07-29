@@ -16,6 +16,7 @@ import type * as exercisesSeed from "../exercisesSeed.js";
 import type * as http from "../http.js";
 import type * as model from "../model.js";
 import type * as notifications from "../notifications.js";
+import type * as presets from "../presets.js";
 import type * as push from "../push.js";
 import type * as pushSender from "../pushSender.js";
 import type * as templates from "../templates.js";
@@ -37,6 +38,7 @@ declare const fullApi: ApiFromModules<{
   http: typeof http;
   model: typeof model;
   notifications: typeof notifications;
+  presets: typeof presets;
   push: typeof push;
   pushSender: typeof pushSender;
   templates: typeof templates;

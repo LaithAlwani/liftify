@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
-import { Barbell, CaretLeft } from "@phosphor-icons/react";
+import { Barbell, CaretLeft, Check } from "@phosphor-icons/react";
 import {
   Segmented,
   Stepper,
@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/form-controls";
 import { Button } from "@/components/ui/button";
 import { PushToggle } from "@/components/push-toggle";
+import { EQUIPMENT_OPTIONS, SPLIT_OPTIONS } from "@/lib/presets";
 
 // A light, skippable welcome flow for brand-new accounts. Every question maps to
 // a real setting, and each step is optional — "Skip for now" drops the user
@@ -25,11 +26,22 @@ const UNIT_OPTIONS: SegmentOption<"lb" | "kg">[] = [
   { key: "kg", label: "KG" },
 ];
 
+// "Skip" pseudo-option for the split step — build your own days later.
+const SKIP_SPLIT = "none";
+
 // One entry per step — keeps the header text easy to edit in one place.
 const STEP_META = [
   {
     title: "Your weight unit",
     subtitle: "This is how every weight shows across the app.",
+  },
+  {
+    title: "Your weight room",
+    subtitle: "What can you train with? Pick everything you have.",
+  },
+  {
+    title: "Pick your split",
+    subtitle: "We'll set up ready-to-go days you can start in one tap.",
   },
   {
     title: "Weekly goal",
@@ -63,6 +75,8 @@ export function Onboarding({
 }) {
   const setUnits = useMutation(api.users.setUnits);
   const setPreferences = useMutation(api.users.setPreferences);
+  const saveEquipment = useMutation(api.users.setEquipment);
+  const createStarterDays = useMutation(api.presets.createStarterDays);
   const createBodyEntry = useMutation(api.bodyEntries.create);
   const completeOnboarding = useMutation(api.users.completeOnboarding);
 
@@ -74,6 +88,11 @@ export function Onboarding({
 
   // Everything the user picks, seeded with sensible defaults.
   const [units, setUnitsState] = useState<"lb" | "kg">(defaultUnits ?? "lb");
+  // Most home gyms start with a barbell and dumbbells — preselect those.
+  const [equipmentKeys, setEquipmentKeys] = useState<Set<string>>(
+    () => new Set(["barbell", "dumbbell"]),
+  );
+  const [split, setSplit] = useState<string>("ppl"); // Push/Pull/Legs by default
   const [weeklyGoal, setWeeklyGoal] = useState(defaultGoal ?? 4);
   const [bodyWeightInput, setBodyWeightInput] = useState("");
   const [reminderHour, setReminderHour] = useState(10); // default 10 AM
@@ -96,6 +115,15 @@ export function Onboarding({
     setReminderHour(((hour % 24) + 24) % 24);
   }
 
+  function toggleEquipment(key: string) {
+    setEquipmentKeys((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  }
+
   // Persist the current step's answer. Called when advancing so a later "skip"
   // keeps the answers the user already gave. All best-effort — a failed save
   // never blocks the user.
@@ -104,8 +132,16 @@ export function Onboarding({
       if (currentStep === 0) {
         await setUnits({ units }); // server no-ops if unchanged
       } else if (currentStep === 1) {
-        await setPreferences({ weeklyGoal });
+        await saveEquipment({ equipment: [...equipmentKeys] });
       } else if (currentStep === 2) {
+        // Generate the chosen split's starter days. Equipment was saved on the
+        // previous step, so the server tailors the picks to what the user has.
+        if (split !== SKIP_SPLIT) {
+          await createStarterDays({ split });
+        }
+      } else if (currentStep === 3) {
+        await setPreferences({ weeklyGoal });
+      } else if (currentStep === 4) {
         const startingWeight = parseFloat(bodyWeightInput);
         if (startingWeight > 0) {
           await Promise.all([
@@ -113,7 +149,7 @@ export function Onboarding({
             setPreferences({ bodyWeight: startingWeight }),
           ]);
         }
-      } else if (currentStep === 3) {
+      } else if (currentStep === 5) {
         await setPreferences({ reminderHour, remindExercise, remindWeighIn });
       }
     } catch {
@@ -225,6 +261,45 @@ export function Onboarding({
             )}
 
             {step === 1 && (
+              <div className="flex flex-col gap-2">
+                <div className="grid grid-cols-2 gap-2">
+                  {EQUIPMENT_OPTIONS.map((option) => (
+                    <EquipmentChip
+                      key={option.key}
+                      label={option.label}
+                      selected={equipmentKeys.has(option.key)}
+                      onClick={() => toggleEquipment(option.key)}
+                    />
+                  ))}
+                </div>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Bodyweight moves are always included.
+                </p>
+              </div>
+            )}
+
+            {step === 2 && (
+              <div className="flex flex-col gap-2">
+                {SPLIT_OPTIONS.map((option) => (
+                  <SplitRow
+                    key={option.key}
+                    label={option.label}
+                    description={option.description}
+                    dayCount={option.dayCount}
+                    selected={split === option.key}
+                    onClick={() => setSplit(option.key)}
+                  />
+                ))}
+                <SplitRow
+                  label="Skip for now"
+                  description="I'll build my own days later"
+                  selected={split === SKIP_SPLIT}
+                  onClick={() => setSplit(SKIP_SPLIT)}
+                />
+              </div>
+            )}
+
+            {step === 3 && (
               <div className="flex items-center justify-between gap-4 rounded-2xl border border-border bg-surface-3 px-4 py-4">
                 <p className="text-sm font-medium">Workouts per week</p>
                 <Stepper
@@ -235,7 +310,7 @@ export function Onboarding({
               </div>
             )}
 
-            {step === 2 && (
+            {step === 4 && (
               <div>
                 <label
                   className="text-sm font-medium"
@@ -261,7 +336,7 @@ export function Onboarding({
               </div>
             )}
 
-            {step === 3 && (
+            {step === 5 && (
               <div className="flex flex-col gap-3">
                 <div className="flex items-center justify-between gap-4 rounded-2xl border border-border bg-surface-3 px-4 py-3">
                   <p className="text-sm font-medium">Reminder time</p>
@@ -329,5 +404,89 @@ export function Onboarding({
         </div>
       </div>
     </div>
+  );
+}
+
+// A tappable equipment chip for the "weight room" step (multi-select).
+function EquipmentChip({
+  label,
+  selected,
+  onClick,
+}: {
+  label: string;
+  selected: boolean;
+  onClick: () => void;
+}) {
+  const base =
+    "flex items-center justify-between gap-2 rounded-2xl border px-3.5 py-3 text-left text-sm font-medium transition-colors";
+  const state = selected
+    ? "border-accent bg-accent/10 text-foreground"
+    : "border-border bg-surface-3 text-muted-foreground hover:text-foreground";
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={selected}
+      className={`${base} ${state}`}
+    >
+      <span className="truncate">{label}</span>
+      <span
+        className={`flex size-5 shrink-0 items-center justify-center rounded-full border ${
+          selected
+            ? "border-accent bg-accent text-accent-foreground"
+            : "border-border-strong"
+        }`}
+      >
+        {selected && <Check weight="bold" className="size-3" />}
+      </span>
+    </button>
+  );
+}
+
+// A single-select row for the "pick your split" step.
+function SplitRow({
+  label,
+  description,
+  dayCount,
+  selected,
+  onClick,
+}: {
+  label: string;
+  description: string;
+  dayCount?: number;
+  selected: boolean;
+  onClick: () => void;
+}) {
+  const base =
+    "flex items-center gap-3 rounded-2xl border px-4 py-3 text-left transition-colors";
+  const state = selected
+    ? "border-accent bg-accent/10"
+    : "border-border bg-surface-3 hover:border-border-strong";
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={selected}
+      className={`${base} ${state}`}
+    >
+      <span
+        className={`flex size-5 shrink-0 items-center justify-center rounded-full border ${
+          selected ? "border-accent" : "border-border-strong"
+        }`}
+      >
+        {selected && <span className="size-2.5 rounded-full bg-accent" />}
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="block font-display text-sm font-extrabold">
+          {label}
+        </span>
+        <span className="text-xs text-muted-foreground">{description}</span>
+      </span>
+      {dayCount !== undefined && (
+        <span className="mono-label shrink-0 text-[10px] text-muted-foreground">
+          {dayCount} {dayCount === 1 ? "DAY" : "DAYS"}
+        </span>
+      )}
+    </button>
   );
 }

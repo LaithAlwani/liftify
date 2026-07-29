@@ -3,7 +3,13 @@
 import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
-import { loggedExercises, exerciseSeries, withBodyweight } from "@/lib/prs";
+import {
+  loggedExercises,
+  exerciseSeries,
+  withBodyweight,
+  workoutVolume,
+  kindByLibrary,
+} from "@/lib/prs";
 import { CountUp } from "@/components/ui/count-up";
 import {
   BarChart,
@@ -89,24 +95,17 @@ export default function ProgressPage() {
     (checkins ?? []).map((checkin) => startOfDay(checkin.date)),
   );
 
-  // Fold body weight into bodyweight moves so volume / 1RM reflect total load.
-  const bwNames = useMemo(
-    () =>
-      new Set(
-        (exercises ?? [])
-          .filter(
-            (exercise) =>
-              exercise.equipment === "body only" &&
-              exercise.mechanic === "compound",
-          )
-          .map((exercise) => exercise.name.toLowerCase()),
-      ),
+  // Resolve each exercise's kind from the library. Folding body weight into
+  // bodyweight moves keeps the strength chart's est. 1RM honest; the volume
+  // buckets below use workoutVolume so dumbbells count both hands.
+  const kindByName = useMemo(
+    () => kindByLibrary(exercises ?? []),
     [exercises],
   );
   const effBodyWeight = latestBodyWeight ?? me?.bodyWeight ?? 0;
   const loadWorkouts = useMemo(
-    () => withBodyweight(workouts ?? [], bwNames, effBodyWeight),
-    [workouts, bwNames, effBodyWeight],
+    () => withBodyweight(workouts ?? [], kindByName, effBodyWeight),
+    [workouts, kindByName, effBodyWeight],
   );
 
   const WEEKS = 8;
@@ -117,15 +116,13 @@ export default function ProgressPage() {
     for (let i = WEEKS - 1; i >= 0; i--) {
       buckets.set(thisWeek - i * 7 * DAY, { count: 0, volume: 0 });
     }
-    for (const workout of loadWorkouts) {
+    // Iterate the RAW workouts here — workoutVolume folds body weight and
+    // doubles dumbbells itself, so using loadWorkouts would double-count.
+    for (const workout of workouts) {
       const bucket = buckets.get(startOfWeek(workout.date));
       if (!bucket) continue;
       bucket.count += 1;
-      bucket.volume += workout.exercises.reduce(
-        (sum, exercise) =>
-          sum + exercise.sets.reduce((s, set) => s + set.reps * set.weight, 0),
-        0,
-      );
+      bucket.volume += workoutVolume(workout, kindByName, effBodyWeight);
     }
     weeks = [...buckets.entries()]
       .sort((a, b) => a[0] - b[0])

@@ -17,12 +17,19 @@ const setEntry = v.object({
   weight: v.number(),
 });
 
+const exerciseKind = v.union(v.literal("bodyweight"), v.literal("dumbbell"));
+
 const exerciseEntry = v.object({
   name: v.string(),
+  kind: v.optional(exerciseKind),
   sets: v.array(setEntry),
 });
 
-type ExerciseInput = { name: string; sets: { reps: number; weight: number }[] };
+type ExerciseInput = {
+  name: string;
+  kind?: "bodyweight" | "dumbbell";
+  sets: { reps: number; weight: number }[];
+};
 
 // Same shape/rules as workouts: trim names, clamp numbers, drop empty sets and
 // empty exercises. A template set keeps target reps even when weight is 0
@@ -31,6 +38,8 @@ function cleanExercises(exercises: ExerciseInput[]) {
   return exercises
     .map((exercise) => ({
       name: exercise.name.trim(),
+      // Carry the weight-reading mode through (standard exercises store none).
+      ...(exercise.kind ? { kind: exercise.kind } : {}),
       sets: exercise.sets
         .map((set) => ({
           reps: Math.max(0, Math.round(set.reps)),

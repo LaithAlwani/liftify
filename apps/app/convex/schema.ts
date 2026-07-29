@@ -29,6 +29,12 @@ export default defineSchema({
     remindWeighIn: v.optional(v.boolean()),
     remindRest: v.optional(v.boolean()),
 
+    // The user's personal weight room — which equipment they have on hand.
+    // User-facing keys (e.g. "barbell", "dumbbell"); bodyweight is always
+    // available. Set during onboarding, editable in settings. Powers the
+    // starter-day generator and could later filter the exercise picker.
+    equipment: v.optional(v.array(v.string())),
+
     lastWeighInWeek: v.optional(v.number()), // weekKey we last handled the weigh-in reminder
 
     onboardedAt: v.optional(v.number()), // epoch ms; set when the user finishes/skips the welcome flow
@@ -63,6 +69,13 @@ export default defineSchema({
     exercises: v.array(
       v.object({
         name: v.string(),
+        // How the weight for this exercise is read. Absent = "standard" (weight
+        // is the total load). "bodyweight" = weight is the ADDED load on top of
+        // body weight (0 = just bodyweight). "dumbbell" = weight is per-hand and
+        // volume counts both hands. See lib/prs.ts for the math.
+        kind: v.optional(
+          v.union(v.literal("bodyweight"), v.literal("dumbbell")),
+        ),
         sets: v.array(
           v.object({
             reps: v.number(),
@@ -82,6 +95,10 @@ export default defineSchema({
     exercises: v.array(
       v.object({
         name: v.string(),
+        // Same weight-reading modes as workouts (see the `kind` note above).
+        kind: v.optional(
+          v.union(v.literal("bodyweight"), v.literal("dumbbell")),
+        ),
         sets: v.array(
           v.object({
             reps: v.number(),
