@@ -37,7 +37,8 @@ export default defineSchema({
 
     lastWeighInWeek: v.optional(v.number()), // weekKey we last handled the weigh-in reminder
 
-    onboardedAt: v.optional(v.number()), // epoch ms; set when the user finishes/skips the welcome flow
+    onboardedAt: v.optional(v.number()), // epoch ms; set only when the user FINISHES the welcome flow
+    onboardingSkippedAt: v.optional(v.number()), // epoch ms; set when they tap "Skip for now" instead
 
     createdAt: v.number(),
   }).index("by_clerk_id", ["clerkId"]),

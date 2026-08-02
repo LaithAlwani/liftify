@@ -14,6 +14,7 @@ import {
   Check,
 } from "@phosphor-icons/react";
 import { PushToggle } from "@/components/push-toggle";
+import { InstallPrompt } from "@/components/install-prompt";
 import { Button } from "@/components/ui/button";
 import {
   Segmented,
@@ -421,6 +422,9 @@ export default function SettingsPage() {
           onToggle={() => toggleReminder("remindRest")}
         />
       </section>
+
+      {/* Install nudge — reminders only reach a closed app once installed. */}
+      <InstallPrompt />
 
       {/* Push reminders (device-level opt-in) */}
       <PushToggle />

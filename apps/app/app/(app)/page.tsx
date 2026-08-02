@@ -12,6 +12,7 @@ import {
   ChartBar,
   Play,
   Plus,
+  X,
 } from "@phosphor-icons/react";
 import { kindByLibrary, workoutVolume } from "@/lib/prs";
 import { StatCard } from "@/components/ui/stat-card";
@@ -19,6 +20,8 @@ import { CountUp } from "@/components/ui/count-up";
 import { ProgressRing } from "@/components/ui/progress-ring";
 import { BodyDiagram } from "@/components/body-diagram";
 import { Onboarding } from "@/components/onboarding";
+import { InstallPrompt } from "@/components/install-prompt";
+import { HorizontalScroller } from "@/components/ui/horizontal-scroller";
 import { computeStreak } from "@/lib/streak";
 
 const DAY = 86_400_000;
@@ -55,7 +58,10 @@ export default function HomePage() {
   const latestBody = useQuery(api.bodyEntries.latest, {});
   const checkins = useQuery(api.checkins.listForUser, {});
   const logCheckin = useMutation(api.checkins.create);
+  const pushEnabled = useQuery(api.push.pushEnabled);
   const [recoveryNote, setRecoveryNote] = useState<string | null>(null);
+  // Set when the user re-opens the welcome flow from the "finish setup" reminder.
+  const [resumeSetup, setResumeSetup] = useState(false);
 
   const [hasDraft, setHasDraft] = useState(false);
   useEffect(() => {
@@ -144,13 +150,40 @@ export default function HomePage() {
   // and their workouts have loaded.
   if (!me || workouts === undefined) return <HomeSkeleton />;
 
+  // Onboarding is gated purely by server flags now — NOT by whether they have
+  // workouts — so deleting sessions never re-triggers the wizard.
+  //   completed  → never prompt again.
+  //   skipped    → don't force the wizard; show a gentle reminder instead.
+  //   never acted→ show the full wizard once.
+  const onboardingCompleted = !!me.onboardedAt;
+  const onboardingSkipped = !onboardingCompleted && !!me.onboardingSkippedAt;
+  const neverOnboarded = !onboardingCompleted && !me.onboardingSkippedAt;
+  const showOnboardingWizard = neverOnboarded || resumeSetup;
+
+  // Reminders are on by default (undefined = on). If at least one is on but the
+  // user hasn't set up push, an installed PWA is what makes them actually land.
+  const remindersOn = me.remindExercise !== false || me.remindWeighIn !== false;
+
   return (
     <div className="container-page flex flex-col gap-6 py-8">
-      <Onboarding
-        enabled={!me.onboardedAt && workouts.length === 0}
-        defaultUnits={me.units}
-        defaultGoal={me.weeklyGoal}
-      />
+      {showOnboardingWizard && (
+        <Onboarding
+          // Remount on manual resume so the wizard reopens at step 1.
+          key={resumeSetup ? "resume" : "first-run"}
+          enabled
+          onClose={() => setResumeSetup(false)}
+          defaultUnits={me.units}
+          defaultGoal={me.weeklyGoal}
+        />
+      )}
+
+      {onboardingSkipped && !resumeSetup && (
+        <SetupReminder onResume={() => setResumeSetup(true)} />
+      )}
+
+      {/* Nudge to install the PWA — but only when it actually helps: reminders
+          are on yet push isn't set up, so they aren't reaching a closed app. */}
+      {remindersOn && !pushEnabled && <InstallPrompt dismissible />}
 
       {/* Greeting (desktop keeps the start button on the right) */}
       <div className="flex items-end justify-between gap-4">
@@ -232,7 +265,7 @@ export default function HomePage() {
           </div>
 
           {templates.length > 0 ? (
-            <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            <HorizontalScroller className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
               {templates.map((template) => (
                 <Link
                   key={template._id}
@@ -263,7 +296,7 @@ export default function HomePage() {
                   <span className="mono-label text-[11px]">NEW</span>
                 </Link>
               )}
-            </div>
+            </HorizontalScroller>
           ) : (
             <Link
               href="/templates/new"
@@ -516,6 +549,44 @@ export default function HomePage() {
           </div>
         )}
       </section>
+    </div>
+  );
+}
+
+// Gentle nudge shown when the user SKIPPED the welcome flow — resumes the wizard
+// rather than forcing it. Hiding it only lasts the session; it returns next
+// visit until they actually finish setup.
+function SetupReminder({ onResume }: { onResume: () => void }) {
+  const [hidden, setHidden] = useState(false);
+  if (hidden) return null;
+
+  const cardStyles =
+    "flex items-center gap-3 rounded-[14px] border border-accent/40 bg-accent/[0.06] p-4";
+  const finishButtonStyles =
+    "shrink-0 rounded-xl bg-accent px-3.5 py-2 font-display text-sm font-black italic tracking-tight text-accent-foreground transition hover:brightness-105";
+
+  return (
+    <div className={cardStyles}>
+      <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-accent/15 text-accent">
+        <Barbell weight="fill" className="size-5" />
+      </span>
+      <div className="min-w-0 flex-1">
+        <p className="font-display text-sm font-extrabold">Finish setting up</p>
+        <p className="text-xs text-muted-foreground">
+          Pick your gym and a starter split for quick-start days.
+        </p>
+      </div>
+      <button type="button" onClick={onResume} className={finishButtonStyles}>
+        Finish
+      </button>
+      <button
+        type="button"
+        onClick={() => setHidden(true)}
+        aria-label="Dismiss reminder"
+        className="shrink-0 text-muted-foreground transition-colors hover:text-foreground"
+      >
+        <X weight="bold" className="size-4" />
+      </button>
     </div>
   );
 }
