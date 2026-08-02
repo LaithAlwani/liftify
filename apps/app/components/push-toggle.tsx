@@ -4,6 +4,11 @@ import { useEffect, useState } from "react";
 import { useAction, useMutation, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { BellRinging } from "@phosphor-icons/react";
+import {
+  InstallPrompt,
+  getIsStandalone,
+  getIsIOS,
+} from "@/components/install-prompt";
 
 function urlBase64ToUint8Array(base64: string) {
   const padding = "=".repeat((4 - (base64.length % 4)) % 4);
@@ -25,11 +30,17 @@ export function PushToggle({ compact = false }: { compact?: boolean } = {}) {
   const [error, setError] = useState<string | null>(null);
   const [note, setNote] = useState<string | null>(null);
   const [supported, setSupported] = useState(true);
+  // Assume installed until the client check runs (avoids a flash of the install
+  // nudge before hydration).
+  const [standalone, setStandalone] = useState(true);
   const [permission, setPermission] = useState<NotificationPermission | null>(
     null,
   );
 
+  const isIOS = getIsIOS();
+
   useEffect(() => {
+    setStandalone(getIsStandalone());
     setSupported(
       typeof window !== "undefined" &&
         "serviceWorker" in navigator &&
@@ -65,6 +76,9 @@ export function PushToggle({ compact = false }: { compact?: boolean } = {}) {
   // Only treat push as on when the server has a sub AND permission is granted.
   const enabled = serverEnabled && permission === "granted";
   const blocked = permission === "denied";
+  // On iOS, web push only exists once the app is on the Home Screen. Until then,
+  // encourage installing instead of showing an Enable button that can't work.
+  const needsInstallFirst = isIOS && !standalone;
 
   const vapid = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
 
@@ -150,37 +164,47 @@ export function PushToggle({ compact = false }: { compact?: boolean } = {}) {
             <BellRinging weight="bold" className="size-4 text-accent-strong" />
             Push notifications
           </p>
-          {enabled ? (
-            <button
-              type="button"
-              onClick={disable}
-              disabled={busy}
-              className="rounded-full border border-border px-4 py-2 text-xs font-medium transition-colors hover:bg-muted disabled:opacity-50"
-            >
-              {busy ? "Working…" : "On"}
-            </button>
-          ) : (
-            <button
-              type="button"
-              onClick={enable}
-              disabled={busy}
-              className="rounded-full bg-accent px-4 py-2 text-xs font-medium text-accent-foreground transition-colors hover:bg-accent-strong disabled:opacity-50"
-            >
-              {busy ? "Working…" : "Enable"}
-            </button>
-          )}
+          {!needsInstallFirst &&
+            (enabled ? (
+              <button
+                type="button"
+                onClick={disable}
+                disabled={busy}
+                className="rounded-full border border-border px-4 py-2 text-xs font-medium transition-colors hover:bg-muted disabled:opacity-50"
+              >
+                {busy ? "Working…" : "On"}
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={enable}
+                disabled={busy}
+                className="rounded-full bg-accent px-4 py-2 text-xs font-medium text-accent-foreground transition-colors hover:bg-accent-strong disabled:opacity-50"
+              >
+                {busy ? "Working…" : "Enable"}
+              </button>
+            ))}
         </div>
-        {supported && blocked && (
-          <p className="mt-2 text-xs text-muted-foreground">
-            Notifications are blocked — re-allow them in your browser settings.
-          </p>
+        {needsInstallFirst ? (
+          <div className="mt-3">
+            <InstallPrompt compact />
+          </div>
+        ) : (
+          <>
+            {supported && blocked && (
+              <p className="mt-2 text-xs text-muted-foreground">
+                Notifications are blocked — re-allow them in your browser
+                settings.
+              </p>
+            )}
+            {!supported && (
+              <p className="mt-2 text-xs text-muted-foreground">
+                Not supported on this browser.
+              </p>
+            )}
+            {error && <p className="mt-2 text-xs text-red-500">{error}</p>}
+          </>
         )}
-        {!supported && (
-          <p className="mt-2 text-xs text-muted-foreground">
-            On iPhone, add Liftify to your Home Screen first.
-          </p>
-        )}
-        {error && <p className="mt-2 text-xs text-red-500">{error}</p>}
       </div>
     );
   }
@@ -195,39 +219,50 @@ export function PushToggle({ compact = false }: { compact?: boolean } = {}) {
         Get your weekly weigh-in reminder on this device — even when the app is
         closed.
       </p>
-      <div className="mt-4 flex flex-wrap gap-2">
-        {enabled ? (
-          <button
-            onClick={disable}
-            disabled={busy}
-            className="rounded-full border border-border px-5 py-2.5 text-sm font-medium transition-colors hover:bg-muted disabled:opacity-50"
-          >
-            {busy ? "Working…" : "Turn off push"}
-          </button>
-        ) : (
-          <button
-            onClick={enable}
-            disabled={busy}
-            className="rounded-full bg-accent px-5 py-2.5 text-sm font-medium text-accent-foreground transition-colors hover:bg-accent-strong disabled:opacity-50"
-          >
-            {busy ? "Working…" : "Enable push"}
-          </button>
-        )}
-      </div>
-      {note && <p className="mt-2 text-sm text-accent-strong">{note}</p>}
-      {supported && blocked && (
-        <p className="mt-2 text-xs text-muted-foreground">
-          Notifications are blocked for Liftify. Re-allow them in your browser /
-          device settings, then enable push again.
-        </p>
+
+      {needsInstallFirst ? (
+        // iOS in a browser tab: push is impossible until installed, so guide the
+        // install instead of offering an Enable button that would just error.
+        <div className="mt-4">
+          <InstallPrompt />
+        </div>
+      ) : (
+        <>
+          <div className="mt-4 flex flex-wrap gap-2">
+            {enabled ? (
+              <button
+                onClick={disable}
+                disabled={busy}
+                className="rounded-full border border-border px-5 py-2.5 text-sm font-medium transition-colors hover:bg-muted disabled:opacity-50"
+              >
+                {busy ? "Working…" : "Turn off push"}
+              </button>
+            ) : (
+              <button
+                onClick={enable}
+                disabled={busy}
+                className="rounded-full bg-accent px-5 py-2.5 text-sm font-medium text-accent-foreground transition-colors hover:bg-accent-strong disabled:opacity-50"
+              >
+                {busy ? "Working…" : "Enable push"}
+              </button>
+            )}
+          </div>
+          {note && <p className="mt-2 text-sm text-accent-strong">{note}</p>}
+          {supported && blocked && (
+            <p className="mt-2 text-xs text-muted-foreground">
+              Notifications are blocked for Liftify. Re-allow them in your
+              browser / device settings, then enable push again.
+            </p>
+          )}
+          {!supported && (
+            <p className="mt-2 text-xs text-muted-foreground">
+              Not supported on this browser. On desktop/Android use a supported
+              browser.
+            </p>
+          )}
+          {error && <p className="mt-2 text-sm text-red-600">{error}</p>}
+        </>
       )}
-      {!supported && (
-        <p className="mt-2 text-xs text-muted-foreground">
-          Not supported here. On iPhone, install Liftify to your Home Screen
-          first; on desktop/Android use a supported browser.
-        </p>
-      )}
-      {error && <p className="mt-2 text-sm text-red-600">{error}</p>}
     </section>
   );
 }

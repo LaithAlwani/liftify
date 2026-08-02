@@ -52,7 +52,7 @@ function useInstallEvent() {
 // ----------------------------------------------------------------------------
 
 // Already running as an installed PWA? (standalone display, or iOS home-screen)
-function getIsStandalone() {
+export function getIsStandalone() {
   if (typeof window === "undefined") return false;
   const iosStandalone = (window.navigator as unknown as { standalone?: boolean })
     .standalone;
@@ -62,7 +62,7 @@ function getIsStandalone() {
   );
 }
 
-function getIsIOS() {
+export function getIsIOS() {
   if (typeof navigator === "undefined") return false;
   return /iphone|ipad|ipod/i.test(navigator.userAgent);
 }

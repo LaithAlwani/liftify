@@ -212,11 +212,13 @@ export const completeOnboarding = mutation({
   args: {},
   handler: async (ctx) => {
     const user = await getCurrentUserOrThrow(ctx);
-    if (!user.onboardedAt) {
-      await ctx.db.patch(user._id, {
-        onboardedAt: Date.now(),
-        onboardingSkippedAt: undefined,
-      });
+    if (user.onboardedAt) return; // already done
+    // Set the completion flag on its own so the write can never fail.
+    await ctx.db.patch(user._id, { onboardedAt: Date.now() });
+    // Only clear the "skipped" flag when it's actually set — patching an unset
+    // optional field to undefined can be rejected and abort the whole write.
+    if (user.onboardingSkippedAt !== undefined) {
+      await ctx.db.patch(user._id, { onboardingSkippedAt: undefined });
     }
   },
 });

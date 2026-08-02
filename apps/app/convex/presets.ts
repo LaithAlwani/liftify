@@ -86,6 +86,12 @@ const SPLITS: Record<string, Day[]> = {
   ],
 };
 
+// Every day name any split can generate — used to recognize (and replace) the
+// auto-generated starter templates without touching the user's own custom ones.
+const STARTER_DAY_NAMES = new Set<string>(
+  Object.values(SPLITS).flatMap((days) => days.map((day) => day.name)),
+);
+
 // How the weight for a picked exercise should be read (see lib/prs.ts).
 function inferKind(
   equipment: string | undefined,
@@ -162,11 +168,23 @@ export const createStarterDays = mutation({
       }
     }
 
+    // Re-running onboarding (or switching splits) should REPLACE the starter
+    // days, not stack duplicates that quietly fill the 5-template cap. Delete
+    // any previously auto-generated starter templates first; keep the user's own
+    // custom templates and count them against the cap.
     const existing = await ctx.db
       .query("templates")
       .withIndex("by_user", (q) => q.eq("userId", user._id))
       .collect();
-    let remaining = MAX_TEMPLATES - existing.length;
+    let customCount = 0;
+    for (const template of existing) {
+      if (STARTER_DAY_NAMES.has(template.name)) {
+        await ctx.db.delete(template._id);
+      } else {
+        customCount += 1;
+      }
+    }
+    let remaining = MAX_TEMPLATES - customCount;
 
     // Insert in order, but stamp createdAt so the FIRST day sorts on top (the
     // list shows newest-first). now - index keeps day 0 above day 1, etc.
