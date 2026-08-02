@@ -205,16 +205,31 @@ export const setEquipment = mutation({
   },
 });
 
-// Marks the welcome flow as done so it only ever shows once per account
-// (not once per device, like the old localStorage flag did). Called whether the
-// user finishes the wizard or skips it.
+// Marks the welcome flow as fully COMPLETED, so it never shows again for this
+// account — even if they later have zero workouts logged. Completing also clears
+// any earlier "skipped" flag so the home-screen reminder disappears.
 export const completeOnboarding = mutation({
   args: {},
   handler: async (ctx) => {
     const user = await getCurrentUserOrThrow(ctx);
     if (!user.onboardedAt) {
-      await ctx.db.patch(user._id, { onboardedAt: Date.now() });
+      await ctx.db.patch(user._id, {
+        onboardedAt: Date.now(),
+        onboardingSkippedAt: undefined,
+      });
     }
+  },
+});
+
+// The user tapped "Skip for now". Records that they skipped (as opposed to
+// finished) so the full wizard doesn't force itself on every visit — instead the
+// home screen shows a gentle "finish setup" reminder they can resume any time.
+export const skipOnboarding = mutation({
+  args: {},
+  handler: async (ctx) => {
+    const user = await getCurrentUserOrThrow(ctx);
+    if (user.onboardedAt) return; // already finished — nothing to skip
+    await ctx.db.patch(user._id, { onboardingSkippedAt: Date.now() });
   },
 });
 

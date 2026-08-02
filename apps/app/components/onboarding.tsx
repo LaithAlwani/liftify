@@ -12,14 +12,16 @@ import {
 } from "@/components/ui/form-controls";
 import { Button } from "@/components/ui/button";
 import { PushToggle } from "@/components/push-toggle";
+import { InstallPrompt } from "@/components/install-prompt";
 import { EQUIPMENT_OPTIONS, SPLIT_OPTIONS } from "@/lib/presets";
 
 // A light, skippable welcome flow for brand-new accounts. Every question maps to
 // a real setting, and each step is optional — "Skip for now" drops the user
 // straight into logging (the app's whole point is a fast first workout).
 //
-// It shows once per account: the parent passes `enabled` based on the server
-// `onboardedAt` flag, and finishing/skipping calls `completeOnboarding`.
+// The parent controls visibility via `enabled`. Finishing calls
+// `completeOnboarding` (never shown again). Skipping calls `skipOnboarding`,
+// which records a skip so the home screen can gently remind them to finish.
 
 const UNIT_OPTIONS: SegmentOption<"lb" | "kg">[] = [
   { key: "lb", label: "LB" },
@@ -68,10 +70,14 @@ export function Onboarding({
   enabled,
   defaultUnits,
   defaultGoal,
+  onClose,
 }: {
   enabled: boolean;
   defaultUnits?: "lb" | "kg";
   defaultGoal?: number;
+  // Called after the user finishes or skips — lets a parent that manually
+  // re-opened the flow (e.g. the "finish setup" reminder) reset its state.
+  onClose?: () => void;
 }) {
   const setUnits = useMutation(api.users.setUnits);
   const setPreferences = useMutation(api.users.setPreferences);
@@ -79,6 +85,7 @@ export function Onboarding({
   const createStarterDays = useMutation(api.presets.createStarterDays);
   const createBodyEntry = useMutation(api.bodyEntries.create);
   const completeOnboarding = useMutation(api.users.completeOnboarding);
+  const skipOnboarding = useMutation(api.users.skipOnboarding);
 
   // Visibility is derived from `enabled` (the parent's server-flag gate) plus a
   // local "dismissed" once the user finishes or skips — no effect needed.
@@ -165,6 +172,7 @@ export function Onboarding({
     }
     setSaving(false);
     setDismissed(true);
+    onClose?.();
   }
 
   async function handleNext() {
@@ -182,11 +190,18 @@ export function Onboarding({
     if (step > 0) setStep((s) => s - 1);
   }
 
-  // "Skip for now" — mark onboarding done without saving the remaining steps.
-  // Anything committed on earlier steps stays.
+  // "Skip for now" — record a SKIP (not a completion) so the home screen can
+  // remind them to finish later. Anything committed on earlier steps stays.
   async function handleSkip() {
     setSaving(true);
-    await finishFlow();
+    try {
+      await skipOnboarding({});
+    } catch {
+      /* best-effort */
+    }
+    setSaving(false);
+    setDismissed(true);
+    onClose?.();
   }
 
   if (!visible) return null;
@@ -237,6 +252,14 @@ export function Onboarding({
               <span className="text-foreground">{step + 1}</span> / {TOTAL_STEPS}
             </span>
           </div>
+
+          {/* Install nudge — first thing they see, so they can add Liftify to
+              the home screen up front and get reminders on a closed app. */}
+          {step === 0 && (
+            <div className="mt-5">
+              <InstallPrompt compact />
+            </div>
+          )}
 
           {/* Step title */}
           <div className="mt-6">
