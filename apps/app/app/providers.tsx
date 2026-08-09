@@ -4,6 +4,7 @@ import { type ReactNode } from "react";
 import { ConvexReactClient } from "convex/react";
 import { ConvexProviderWithClerk } from "convex/react-clerk";
 import { useAuth } from "@clerk/nextjs";
+import { ToastProvider } from "@/components/ui/toast";
 
 // Falls back to a placeholder so `next build` never crashes when the env var is
 // absent (e.g. a CI build without secrets). Real queries need the real URL.
@@ -14,7 +15,7 @@ const convex = new ConvexReactClient(
 export function Providers({ children }: { children: ReactNode }) {
   return (
     <ConvexProviderWithClerk client={convex} useAuth={useAuth}>
-      {children}
+      <ToastProvider>{children}</ToastProvider>
     </ConvexProviderWithClerk>
   );
 }

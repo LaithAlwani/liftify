@@ -22,28 +22,23 @@ import { RestTimerProvider } from "@/components/rest-timer";
 const DONATE_URL =
   process.env.NEXT_PUBLIC_DONATE_URL || "https://ko-fi.com/liftify";
 
-// Nav items are data so they are easy to edit. `label` shows on desktop,
-// `short` shows in the mobile tab bar (matching the design's terse caps).
-// `desktopOnly` items appear only in the sidebar — the mobile tab bar is full
-// at 5 items, so those are reached from the Home page instead.
+// Primary destinations. `label` shows on desktop, `short` in the mobile tab bar.
+// Shop lives in the top bar (a passive-monetization link, not a primary tab), so
+// the freed slot surfaces Templates on mobile.
 type NavItem = {
   href: string;
   label: string;
   short: string;
   icon: Icon;
-  desktopOnly?: boolean;
 };
 
 const NAV_ITEMS: NavItem[] = [
   { href: "/", label: "Home", short: "HOME", icon: House },
   { href: "/workout/new", label: "Log", short: "LOG", icon: Barbell },
-  { href: "/templates", label: "Templates", short: "PLANS", icon: Cards, desktopOnly: true },
+  { href: "/templates", label: "Templates", short: "TEMPLATES", icon: Cards },
   { href: "/body", label: "Body", short: "BODY", icon: Scales },
   { href: "/progress", label: "Progress", short: "PROGRESS", icon: ChartLineUp },
-  { href: "/shop", label: "Shop", short: "SHOP", icon: Storefront },
 ];
-
-const MOBILE_NAV_ITEMS = NAV_ITEMS.filter((item) => !item.desktopOnly);
 
 function isActive(pathname: string, href: string) {
   return href === "/" ? pathname === "/" : pathname.startsWith(href);
@@ -78,6 +73,24 @@ function DonateButton({ className = "" }: { className?: string }) {
   );
 }
 
+// Shop is a top-bar link (passive monetization), not a primary tab. Lights up
+// volt when the user is on the Shop page.
+function ShopButton({ active }: { active: boolean }) {
+  return (
+    <Link
+      href="/shop"
+      aria-label="Shop"
+      title="Shop"
+      aria-current={active ? "page" : undefined}
+      className={`flex size-9 items-center justify-center rounded-full transition-colors hover:bg-accent/10 hover:text-accent ${
+        active ? "text-accent" : "text-muted-foreground"
+      }`}
+    >
+      <Storefront weight={active ? "fill" : "regular"} className="size-5" />
+    </Link>
+  );
+}
+
 export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const { user } = useUser();
@@ -105,6 +118,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   }, [isAuthenticated, ensureUser, setTimezone]);
 
   const settingsActive = pathname.startsWith("/settings");
+  const shopActive = pathname.startsWith("/shop");
 
   // The user's photo (or their initial) — reused in the sidebar row and the
   // mobile top bar.
@@ -122,7 +136,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const accountRow = (
     <Link
       href="/settings"
-      className={`m-3 flex items-center gap-3 rounded-xl p-2.5 transition-colors ${
+      className={`m-3 flex items-center gap-3 rounded-field p-2.5 transition-colors ${
         settingsActive ? "bg-accent/10" : "bg-card hover:bg-muted"
       }`}
     >
@@ -131,7 +145,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         <span className="block truncate text-sm font-semibold">
           {user?.firstName ?? "Account"}
         </span>
-        <span className="mono-label block text-[10px] text-muted-foreground">
+        <span className="mono-label block text-label text-muted-foreground">
           Settings
         </span>
       </span>
@@ -143,12 +157,8 @@ export function AppShell({ children }: { children: ReactNode }) {
       <div className="flex min-h-full flex-1 flex-col md:pl-64">
         {/* Desktop sidebar */}
         <aside className="fixed inset-y-0 left-0 z-40 hidden w-64 flex-col border-r border-border bg-surface-2 px-3.5 py-4.5 md:flex">
-          <div className="flex items-center justify-between px-2 pb-5">
+          <div className="flex items-center px-2 pb-5">
             <LiftifyWordmark />
-            <div className="flex items-center">
-              <DonateButton />
-              <NotificationBell />
-            </div>
           </div>
 
           <nav className="flex flex-1 flex-col gap-1">
@@ -159,14 +169,15 @@ export function AppShell({ children }: { children: ReactNode }) {
                 <Link
                   key={item.href}
                   href={item.href}
-                  className={`flex items-center gap-3 rounded-[10px] px-3 py-2.5 text-sm transition-colors ${
+                  aria-current={active ? "page" : undefined}
+                  className={`flex items-center gap-3 rounded-field px-3 py-2.5 text-sm transition-colors ${
                     active
                       ? "bg-accent/10 font-semibold text-accent"
                       : "text-muted-foreground hover:bg-muted hover:text-foreground"
                   }`}
                 >
-                  {/* Outlined icon even when active — matches the mobile tab bar. */}
-                  <Ico weight="regular" className="size-5" />
+                  {/* Filled when active for a clear selected state. */}
+                  <Ico weight={active ? "fill" : "regular"} className="size-5" />
                   {item.label}
                 </Link>
               );
@@ -176,10 +187,19 @@ export function AppShell({ children }: { children: ReactNode }) {
           {accountRow}
         </aside>
 
+        {/* Desktop utility icons — pinned to the top-right of the viewport in a
+            solid pill so they never bleed over page content beneath them. */}
+        <div className="fixed right-6 top-3 z-40 hidden items-center gap-0.5 rounded-full border border-border bg-surface-2/95 px-1.5 py-1 shadow-card backdrop-blur md:flex">
+          <ShopButton active={shopActive} />
+          <DonateButton />
+          <NotificationBell />
+        </div>
+
         {/* Mobile top bar — support, notifications, account (desktop uses the sidebar) */}
         <header className="sticky top-0 z-40 flex items-center justify-between border-b border-border bg-surface-2 px-4 pb-2.5 pt-[max(0.625rem,env(safe-area-inset-top))] md:hidden">
           <LiftifyWordmark size="sm" />
           <div className="flex items-center gap-0.5">
+            <ShopButton active={shopActive} />
             <DonateButton />
             <NotificationBell />
             <Link
@@ -192,25 +212,32 @@ export function AppShell({ children }: { children: ReactNode }) {
           </div>
         </header>
 
-        <main className="flex-1 pb-24 md:pb-12">{children}</main>
+        {/* md:pt-8 clears the fixed top-right utility pill on desktop. */}
+        <main className="flex-1 pb-24 md:pb-12 md:pt-8">{children}</main>
 
         {/* Mobile bottom tab bar */}
         <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-surface-2 md:hidden">
-          <div className="mx-auto flex max-w-md items-stretch justify-around pb-[max(1rem,env(safe-area-inset-bottom))] pt-2.5">
-            {MOBILE_NAV_ITEMS.map((item) => {
+          <div className="mx-auto flex max-w-md items-stretch justify-around pb-[max(0.5rem,env(safe-area-inset-bottom))]">
+            {NAV_ITEMS.map((item) => {
               const active = isActive(pathname, item.href);
               const Ico = item.icon;
               return (
                 <Link
                   key={item.href}
                   href={item.href}
-                  className={`flex flex-1 flex-col items-center gap-1 ${
-                    active ? "text-accent" : "text-dim"
+                  aria-current={active ? "page" : undefined}
+                  className={`relative flex flex-1 flex-col items-center gap-1 pb-1 pt-3 transition-colors ${
+                    active ? "text-accent" : "text-dim hover:text-muted-foreground"
                   }`}
                 >
-                  {/* Active tab stays outlined (regular weight), just tinted volt. */}
-                  <Ico weight="regular" className="size-6" />
-                  <span className="mono-label text-[8px]">{item.short}</span>
+                  {/* Volt indicator bar caps the active tab. */}
+                  <span
+                    className={`absolute top-0 h-0.5 w-8 rounded-full bg-accent transition-opacity ${
+                      active ? "opacity-100" : "opacity-0"
+                    }`}
+                  />
+                  <Ico weight={active ? "fill" : "regular"} className="size-6" />
+                  <span className="mono-label text-[9px]">{item.short}</span>
                 </Link>
               );
             })}

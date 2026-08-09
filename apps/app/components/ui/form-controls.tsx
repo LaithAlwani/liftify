@@ -72,17 +72,17 @@ export function Stepper({
   onInc: () => void;
 }) {
   const stepButtonStyles =
-    "flex size-[30px] items-center justify-center rounded-full bg-muted text-bright transition-colors hover:text-foreground";
+    "flex size-11 items-center justify-center rounded-full bg-muted text-bright transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
   return (
     <div className="inline-flex shrink-0 items-center gap-0.5 rounded-full border border-border-strong p-1">
       <button onClick={onDec} aria-label="Decrease" className={stepButtonStyles}>
-        <Minus weight="bold" className="size-3.5" />
+        <Minus weight="bold" className="size-4" />
       </button>
-      <span className="min-w-[58px] text-center font-display text-[15px] font-extrabold tabular-nums">
+      <span className="min-w-[58px] text-center font-display text-base font-extrabold tabular-nums">
         {value}
       </span>
       <button onClick={onInc} aria-label="Increase" className={stepButtonStyles}>
-        <Plus weight="bold" className="size-3.5" />
+        <Plus weight="bold" className="size-4" />
       </button>
     </div>
   );
