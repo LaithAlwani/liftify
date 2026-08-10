@@ -229,6 +229,7 @@ export const broadcastNotification = mutation({
         type: "broadcast",
         title,
         body,
+        url,
         createdAt: now,
       });
     }

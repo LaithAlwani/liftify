@@ -4,7 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { useMutation, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
-import { Bell, Scales } from "@phosphor-icons/react";
+import { Bell, Scales, Barbell, Megaphone, type Icon } from "@phosphor-icons/react";
 
 function timeAgo(ms: number) {
   const diff = Date.now() - ms;
@@ -13,6 +13,13 @@ function timeAgo(ms: number) {
   const hours = Math.floor(diff / 3_600_000);
   if (hours >= 1) return `${hours}h ago`;
   return "just now";
+}
+
+function iconFor(type: string): Icon {
+  if (type === "body_weight_reminder") return Scales;
+  if (type === "daily_exercise_reminder") return Barbell;
+  if (type === "broadcast") return Megaphone;
+  return Bell;
 }
 
 export function NotificationBell() {
@@ -57,15 +64,17 @@ export function NotificationBell() {
               </p>
             ) : (
               <ul className="max-h-80 overflow-y-auto">
-                {items.map((n) => (
+                {items.map((n) => {
+                  const Ico = iconFor(n.type);
+                  return (
                   <li key={n._id}>
                     <Link
-                      href="/body"
+                      href={n.url ?? "/"}
                       onClick={() => setOpen(false)}
                       className="flex gap-3 px-4 py-3 transition-colors hover:bg-muted"
                     >
                       <span className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-full bg-accent/15 text-accent-strong">
-                        <Scales className="size-4" />
+                        <Ico className="size-4" />
                       </span>
                       <span className="min-w-0">
                         <span className="block text-sm font-medium">
@@ -80,7 +89,8 @@ export function NotificationBell() {
                       </span>
                     </Link>
                   </li>
-                ))}
+                  );
+                })}
               </ul>
             )}
           </div>

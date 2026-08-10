@@ -147,6 +147,7 @@ export default defineSchema({
     type: v.string(), // e.g. "body_weight_reminder"
     title: v.string(),
     body: v.string(),
+    url: v.optional(v.string()), // where tapping it goes (defaults to "/")
     weekKey: v.optional(v.number()), // dedupe one-per-week reminders
     createdAt: v.number(),
     readAt: v.optional(v.number()),

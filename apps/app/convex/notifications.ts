@@ -147,6 +147,7 @@ export const runReminders = internalMutation({
               type: "daily_exercise_reminder",
               title: "Time to move",
               body: "Log a workout — or a rest, cardio, or stretch day to keep your streak.",
+              url: "/",
               createdAt: now,
             });
             await ctx.scheduler.runAfter(0, internal.pushSender.sendPush, {
@@ -177,6 +178,7 @@ export const runReminders = internalMutation({
               type: "body_weight_reminder",
               title: "Weekly weigh-in",
               body: "Log your body weight to keep your progress up to date.",
+              url: "/body",
               weekKey,
               createdAt: now,
             });

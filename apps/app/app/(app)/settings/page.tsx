@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useUser, useClerk, SignOutButton } from "@clerk/nextjs";
@@ -11,6 +12,8 @@ import {
   WarningCircle,
   DownloadSimple,
   CaretLeft,
+  CaretRight,
+  ShieldCheck,
   Check,
 } from "@phosphor-icons/react";
 import { PushToggle } from "@/components/push-toggle";
@@ -129,6 +132,7 @@ export default function SettingsPage() {
   const convex = useConvex();
   const { user } = useUser();
   const { signOut } = useClerk();
+  const isAdmin = useQuery(api.admin.isAdmin);
 
   const [exporting, setExporting] = useState<"workouts" | "body" | null>(null);
 
@@ -308,6 +312,26 @@ export default function SettingsPage() {
         </button>
         <PageHeader eyebrow="Preferences" title="Settings" className="flex-1" />
       </div>
+
+      {/* Admin portal — only rendered for admins. The primary entry point on
+          mobile (the desktop sidebar also has an Admin link). */}
+      {isAdmin && (
+        <Link
+          href="/admin"
+          className="flex items-center gap-3 rounded-card border border-accent/40 bg-accent/[0.06] p-4 transition-colors hover:bg-accent/10"
+        >
+          <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-accent/15 text-accent">
+            <ShieldCheck weight="fill" className="size-5" />
+          </span>
+          <div className="min-w-0 flex-1">
+            <p className="font-display text-sm font-extrabold">Admin portal</p>
+            <p className="text-xs text-muted-foreground">
+              Insights, affiliate links, users &amp; broadcasts.
+            </p>
+          </div>
+          <CaretRight weight="bold" className="size-4 text-muted-foreground" />
+        </Link>
+      )}
 
       {/* Units */}
       <Card className={cardBodyStyles}>
