@@ -1,9 +1,16 @@
 import type { Metadata } from "next";
 import { ArrowUpRight, ShoppingBag } from "@phosphor-icons/react/dist/ssr";
-import { SHOP_PRODUCTS, productUrl } from "@/lib/shop";
+import { fetchQuery } from "convex/nextjs";
+import { api } from "@/convex/_generated/api";
+import { AMAZON_TAG, AMAZON_DOMAIN } from "@/lib/shop";
+import { Card } from "@/components/ui/card";
+import { PageHeader } from "@/components/ui/page-header";
 
-// In-app storefront. Lives inside the (app) group so the persistent nav
-// (sidebar + bottom tab bar) stays visible, matching the redesign mockup.
+// In-app storefront. Affiliate links are now admin-managed in Convex (the
+// `affiliateLinks` table); this reads the active ones. Outbound clicks go through
+// /api/go/[linkId] so they're tracked. Dynamic so it always reflects the latest
+// admin changes (and never fetches Convex at build time).
+export const dynamic = "force-dynamic";
 
 const PAGE_TITLE = "Shop — Lifting gear we rate";
 const PAGE_DESCRIPTION =
@@ -14,28 +21,45 @@ export const metadata: Metadata = {
   description: PAGE_DESCRIPTION,
 };
 
-// Steel gradient used for the product icon tile when there is no image.
 const iconTileStyle = {
   backgroundImage:
     "repeating-linear-gradient(45deg,#1c1c22 0 6px,#17171b 6px 12px)",
 };
 
-// Structured data so the listing is eligible for rich results.
-function buildJsonLd() {
+type ShopLink = {
+  _id: string;
+  title: string;
+  category: string;
+  blurb?: string;
+  image?: string;
+  asin?: string;
+  url?: string;
+};
+
+// The real destination (associate tag appended) — used only for JSON-LD; the
+// visible card link points at /api/go so clicks are tracked.
+function destUrl(link: ShopLink): string | null {
+  if (link.url) return link.url;
+  if (!link.asin) return null;
+  const base = `https://www.${AMAZON_DOMAIN}/dp/${link.asin}`;
+  return AMAZON_TAG ? `${base}?tag=${AMAZON_TAG}` : base;
+}
+
+function buildJsonLd(links: ShopLink[]) {
   return {
     "@context": "https://schema.org",
     "@type": "ItemList",
     name: "Liftify Shop",
-    itemListElement: SHOP_PRODUCTS.map((product, index) => {
-      const href = productUrl(product);
+    itemListElement: links.map((link, index) => {
+      const href = destUrl(link);
       return {
         "@type": "ListItem",
         position: index + 1,
         item: {
           "@type": "Product",
-          name: product.title,
-          category: product.category,
-          ...(product.image ? { image: product.image } : {}),
+          name: link.title,
+          category: link.category,
+          ...(link.image ? { image: link.image } : {}),
           ...(href
             ? {
                 offers: {
@@ -51,60 +75,60 @@ function buildJsonLd() {
   };
 }
 
-export default function ShopPage() {
-  const categories = [
-    ...new Set(SHOP_PRODUCTS.map((product) => product.category)),
-  ];
+export default async function ShopPage() {
+  const links = (await fetchQuery(api.affiliate.listActive, {})) as ShopLink[];
+  const categories = [...new Set(links.map((link) => link.category))];
 
   return (
-    <div className="container-page flex flex-col gap-8 py-6 md:py-8">
+    <div className="container-page flex flex-col gap-8 py-8">
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(buildJsonLd()) }}
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(buildJsonLd(links)) }}
       />
 
-      <div>
-        <p className="mono-label text-[11px] text-muted-foreground">
-          Lifting gear we rate
-        </p>
-        <h1 className="font-display text-3xl font-black uppercase sm:text-4xl">
-          Shop
-        </h1>
-        <p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted-foreground">
+      <div className="flex flex-col gap-2">
+        <PageHeader eyebrow="Lifting gear we rate" title="Shop" />
+        <p className="max-w-2xl text-sm leading-relaxed text-muted-foreground">
           A short, honest list of the belts, wraps and supplements we actually
           recommend. As an Amazon Associate, Liftify earns from qualifying
           purchases — at no extra cost to you.
         </p>
       </div>
 
+      {categories.length === 0 && (
+        <p className="text-sm text-muted-foreground">
+          Nothing here yet — check back soon.
+        </p>
+      )}
+
       {categories.map((category) => {
-        const productsInCategory = SHOP_PRODUCTS.filter(
-          (product) => product.category === category,
+        const productsInCategory = links.filter(
+          (link) => link.category === category,
         );
         return (
           <section key={category} className="flex flex-col gap-3">
-            <h2 className="mono-label text-[11px] tracking-[0.2em] text-muted-foreground">
+            <h2 className="mono-label text-label-lg text-muted-foreground">
               {category}
             </h2>
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-              {productsInCategory.map((product) => {
-                const href = productUrl(product);
+              {productsInCategory.map((link) => {
+                const hasDest = !!(link.url || link.asin);
                 return (
-                  <div
-                    key={product.id}
-                    className="flex flex-col rounded-2xl border border-border bg-card p-4 transition hover:border-accent/35"
+                  <Card
+                    key={link._id}
+                    className="flex flex-col p-4 transition hover:border-accent/35"
                   >
                     <div className="flex items-center gap-3">
-                      {product.image ? (
+                      {link.image ? (
                         // eslint-disable-next-line @next/next/no-img-element
                         <img
-                          src={product.image}
-                          alt={product.title}
-                          className="size-[52px] shrink-0 rounded-xl bg-white object-contain"
+                          src={link.image}
+                          alt={link.title}
+                          className="size-[52px] shrink-0 rounded-field bg-white object-contain"
                         />
                       ) : (
                         <span
-                          className="flex size-[52px] shrink-0 items-center justify-center rounded-xl text-dim"
+                          className="flex size-[52px] shrink-0 items-center justify-center rounded-field text-dim"
                           style={iconTileStyle}
                         >
                           <ShoppingBag weight="regular" className="size-5" />
@@ -112,38 +136,38 @@ export default function ShopPage() {
                       )}
                       <div className="min-w-0 flex-1">
                         <p className="font-display text-base font-extrabold leading-tight">
-                          {product.title}
+                          {link.title}
                         </p>
-                        {product.blurb ? (
+                        {link.blurb ? (
                           <p className="mt-1 text-xs leading-snug text-muted-foreground">
-                            {product.blurb}
+                            {link.blurb}
                           </p>
                         ) : null}
                       </div>
                     </div>
                     <div className="mt-3.5 flex items-center justify-between border-t border-border pt-3">
-                      {href ? (
+                      {hasDest ? (
                         <>
-                          <span className="mono-label text-[10px] tracking-[0.12em] text-muted-foreground">
+                          <span className="mono-label text-label text-muted-foreground">
                             View on Amazon
                           </span>
                           <a
-                            href={href}
+                            href={`/api/go/${link._id}`}
                             target="_blank"
                             rel="sponsored noopener noreferrer"
-                            aria-label={`View ${product.title} on Amazon`}
+                            aria-label={`View ${link.title} on Amazon`}
                             className="flex size-7 items-center justify-center rounded-full bg-accent/10 text-accent transition hover:bg-accent hover:text-accent-foreground"
                           >
                             <ArrowUpRight weight="bold" className="size-3.5" />
                           </a>
                         </>
                       ) : (
-                        <span className="mono-label text-[10px] tracking-[0.12em] text-dim">
+                        <span className="mono-label text-label text-dim">
                           Coming soon
                         </span>
                       )}
                     </div>
-                  </div>
+                  </Card>
                 );
               })}
             </div>

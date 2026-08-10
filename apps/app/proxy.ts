@@ -9,6 +9,7 @@ const isPublicRoute = createRouteMatcher([
   "/sso-callback(.*)",
   "/robots.txt",
   "/sitemap.xml",
+  "/api/go(.*)", // outbound affiliate-click redirect — must work signed-out
 ]);
 
 export default clerkMiddleware(async (auth, req) => {

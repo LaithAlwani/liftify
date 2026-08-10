@@ -15,11 +15,13 @@ import {
   PencilSimple,
   Stack,
   TrashSimple,
-  WarningCircle,
 } from "@phosphor-icons/react";
-import { Button } from "@/components/ui/button";
+import { Button, buttonClass } from "@/components/ui/button";
 import { IconButton } from "@/components/ui/icon-button";
 import { StatCard } from "@/components/ui/stat-card";
+import { Card } from "@/components/ui/card";
+import { Modal } from "@/components/ui/modal";
+import { Input } from "@/components/ui/field";
 
 function formatDate(ms: number) {
   return new Date(ms).toLocaleDateString(undefined, {
@@ -37,9 +39,10 @@ function formatDuration(sec: number) {
   return `${Math.floor(totalMinutes / 60)}h ${totalMinutes % 60}m`;
 }
 
-const exerciseCardStyles = "rounded-[14px] border border-border bg-card p-4";
-const editButtonStyles =
-  "flex size-9 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground";
+// The edit action is a Link, so it can't be an IconButton (a <button>). Mirror
+// the ghost IconButton at the 44px tap-target size for a consistent shape.
+const editLinkStyles =
+  "flex size-11 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground";
 
 export default function WorkoutDetailPage() {
   const params = useParams();
@@ -100,14 +103,14 @@ export default function WorkoutDetailPage() {
   if (workout === undefined) {
     return (
       <div className="container-page py-8">
-        <div className="h-40 animate-pulse rounded-[14px] border border-border bg-card" />
+        <div className="h-40 animate-pulse rounded-card border border-border bg-card" />
       </div>
     );
   }
   if (workout === null) {
     return (
       <div className="container-page py-16 text-center">
-        <p className="mono-label text-[10px] text-dim">Not found</p>
+        <p className="mono-label text-label text-dim">Not found</p>
         <p className="mt-2 text-muted-foreground">
           This workout no longer exists.
         </p>
@@ -145,7 +148,7 @@ export default function WorkoutDetailPage() {
     <div className="container-page flex flex-col gap-6 py-8">
       <Link
         href="/history"
-        className="mono-label inline-flex items-center gap-1.5 text-[11px] text-muted-foreground transition-colors hover:text-foreground"
+        className="mono-label inline-flex items-center gap-1.5 text-label-lg text-muted-foreground transition-colors hover:text-foreground"
       >
         <CaretLeft weight="bold" className="size-3.5" />
         History
@@ -165,7 +168,7 @@ export default function WorkoutDetailPage() {
             href={`/workout/new?edit=${workout._id}`}
             aria-label="Edit workout"
             title="Edit workout"
-            className={editButtonStyles}
+            className={editLinkStyles}
           >
             <PencilSimple weight="bold" className="size-5" />
           </Link>
@@ -182,19 +185,21 @@ export default function WorkoutDetailPage() {
       <div className="flex flex-col gap-2 sm:flex-row">
         <Link
           href={`/workout/new?repeat=${workout._id}`}
-          className="inline-flex h-12 flex-1 items-center justify-center gap-2 rounded-[14px] bg-accent font-display font-black italic text-accent-foreground transition-[filter] hover:brightness-105 active:translate-y-px"
+          className={buttonClass("display", "lg", "flex-1")}
         >
           <ArrowsClockwise weight="bold" className="size-5" />
           REPEAT THIS WORKOUT
         </Link>
-        <button
+        <Button
           type="button"
+          variant="secondary"
+          size="lg"
           onClick={openSaveAsTemplate}
-          className="inline-flex h-12 items-center justify-center gap-2 rounded-[14px] border border-border-strong px-5 font-display font-black italic tracking-tight text-bright transition-colors hover:border-accent/40 hover:text-accent"
+          className="font-display !font-black italic tracking-tight"
         >
           <Cards weight="bold" className="size-5" />
           SAVE AS TEMPLATE
-        </button>
+        </Button>
       </div>
 
       <div className="grid grid-cols-3 gap-3">
@@ -218,7 +223,7 @@ export default function WorkoutDetailPage() {
 
       <div className="flex flex-col gap-3">
         {workout.exercises.map((exercise, exerciseIndex) => (
-          <div key={exerciseIndex} className={exerciseCardStyles}>
+          <Card key={exerciseIndex} className="p-4">
             <p className="font-display text-base font-extrabold">
               {exercise.name}
             </p>
@@ -228,7 +233,7 @@ export default function WorkoutDetailPage() {
                   key={setIndex}
                   className="flex items-center justify-between border-t border-border pt-1.5 first:border-t-0 first:pt-0"
                 >
-                  <span className="mono-label text-[10px] text-dim">
+                  <span className="mono-label text-label text-dim">
                     Set {setIndex + 1}
                   </span>
                   <span className="font-mono text-sm tabular-nums text-bright">
@@ -237,95 +242,73 @@ export default function WorkoutDetailPage() {
                 </li>
               ))}
             </ul>
-          </div>
+          </Card>
         ))}
       </div>
 
-      {confirmDelete && (
-        <div
-          className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 p-4 sm:items-center"
-          onClick={() => !deleting && setConfirmDelete(false)}
-          role="dialog"
-          aria-modal="true"
-        >
-          <div
-            className="w-full max-w-sm rounded-[16px] border border-border-strong bg-card p-6 shadow-xl"
-            onClick={(event) => event.stopPropagation()}
-          >
-            <div className="flex items-center gap-2 text-red-500">
-              <WarningCircle weight="fill" className="size-5" />
-              <h2 className="font-display text-lg font-black">Delete workout?</h2>
-            </div>
-            <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-              &ldquo;{workout.name}&rdquo; will be permanently removed from your
-              history.
-            </p>
-            <div className="mt-6 flex justify-end gap-2">
-              <Button
-                variant="secondary"
-                onClick={() => setConfirmDelete(false)}
-                disabled={deleting}
-              >
-                Cancel
-              </Button>
-              <Button variant="danger" onClick={handleDelete} disabled={deleting}>
-                {deleting ? "Deleting…" : "Delete"}
-              </Button>
-            </div>
+      <Modal
+        open={confirmDelete}
+        onClose={() => !deleting && setConfirmDelete(false)}
+        title="Delete workout?"
+        footer={
+          <div className="flex justify-end gap-2">
+            <Button
+              variant="secondary"
+              onClick={() => setConfirmDelete(false)}
+              disabled={deleting}
+            >
+              Cancel
+            </Button>
+            <Button variant="danger" onClick={handleDelete} disabled={deleting}>
+              {deleting ? "Deleting…" : "Delete"}
+            </Button>
           </div>
-        </div>
-      )}
+        }
+      >
+        <p className="text-sm leading-relaxed text-muted-foreground">
+          &ldquo;{workout.name}&rdquo; will be permanently removed from your
+          history.
+        </p>
+      </Modal>
 
       {/* Save as template */}
-      {saveOpen && (
-        <div
-          className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 p-4 sm:items-center"
-          onClick={() => !savingTemplate && setSaveOpen(false)}
-          role="dialog"
-          aria-modal="true"
-        >
-          <div
-            className="w-full max-w-sm rounded-[16px] border border-border-strong bg-card p-6 shadow-xl"
-            onClick={(event) => event.stopPropagation()}
-          >
-            <div className="flex items-center gap-2 text-accent">
-              <Cards weight="fill" className="size-5" />
-              <h2 className="font-display text-lg font-black">
-                Save as template
-              </h2>
-            </div>
-            <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-              Reuse these {workout.exercises.length} exercise
-              {workout.exercises.length === 1 ? "" : "s"} to start a workout fast.
-            </p>
-            <input
-              value={templateName}
-              onChange={(event) => setTemplateName(event.target.value)}
-              aria-label="Template name"
-              placeholder="Template name"
-              className="mt-4 h-11 w-full rounded-xl border border-border bg-background px-3 text-base text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-            />
-            {templateError && (
-              <p className="mt-3 text-sm text-red-500">{templateError}</p>
-            )}
-            <div className="mt-6 flex justify-end gap-2">
-              <Button
-                variant="secondary"
-                onClick={() => setSaveOpen(false)}
-                disabled={savingTemplate}
-              >
-                Cancel
-              </Button>
-              <Button
-                onClick={handleSaveAsTemplate}
-                disabled={savingTemplate || templateName.trim().length === 0}
-              >
-                {savingTemplate ? "Saving…" : "Save template"}
-              </Button>
-            </div>
+      <Modal
+        open={saveOpen}
+        onClose={() => !savingTemplate && setSaveOpen(false)}
+        title="Save as template"
+        footer={
+          <div className="flex justify-end gap-2">
+            <Button
+              variant="secondary"
+              onClick={() => setSaveOpen(false)}
+              disabled={savingTemplate}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleSaveAsTemplate}
+              disabled={savingTemplate || templateName.trim().length === 0}
+            >
+              {savingTemplate ? "Saving…" : "Save template"}
+            </Button>
           </div>
-        </div>
-      )}
+        }
+      >
+        <p className="text-sm leading-relaxed text-muted-foreground">
+          Reuse these {workout.exercises.length} exercise
+          {workout.exercises.length === 1 ? "" : "s"} to start a workout fast.
+        </p>
+        <Input
+          value={templateName}
+          onChange={(event) => setTemplateName(event.target.value)}
+          aria-label="Template name"
+          placeholder="Template name"
+          className="mt-4"
+        />
+        {templateError && (
+          <p className="mt-3 text-sm text-danger">{templateError}</p>
+        )}
+      </Modal>
     </div>
   );
 }

@@ -8,8 +8,11 @@
  * @module
  */
 
+import type * as admin from "../admin.js";
+import type * as affiliate from "../affiliate.js";
 import type * as bodyEntries from "../bodyEntries.js";
 import type * as checkins from "../checkins.js";
+import type * as config from "../config.js";
 import type * as crons from "../crons.js";
 import type * as exercises from "../exercises.js";
 import type * as exercisesSeed from "../exercisesSeed.js";
@@ -30,8 +33,11 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  admin: typeof admin;
+  affiliate: typeof affiliate;
   bodyEntries: typeof bodyEntries;
   checkins: typeof checkins;
+  config: typeof config;
   crons: typeof crons;
   exercises: typeof exercises;
   exercisesSeed: typeof exercisesSeed;

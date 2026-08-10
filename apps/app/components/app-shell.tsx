@@ -2,9 +2,9 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { useUser } from "@clerk/nextjs";
-import { useConvexAuth, useMutation } from "convex/react";
+import { useConvexAuth, useMutation, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import {
   House,
@@ -14,10 +14,53 @@ import {
   Storefront,
   Cards,
   Heart,
+  ShieldCheck,
+  Megaphone,
+  X,
   type Icon,
 } from "@phosphor-icons/react";
 import { NotificationBell } from "@/components/notification-bell";
 import { RestTimerProvider } from "@/components/rest-timer";
+
+// Site-wide announcement banner, controlled from /admin. Dismissal is keyed by
+// `updatedAt` so a NEW message re-shows even after a previous one was dismissed.
+function AnnouncementBanner() {
+  const config = useQuery(api.config.get);
+  const [dismissedKey, setDismissedKey] = useState<number | null>(null);
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem("liftify:banner-dismissed");
+      setDismissedKey(raw ? Number(raw) : null);
+    } catch {
+      /* ignore */
+    }
+  }, []);
+  if (!config?.bannerActive || !config.bannerText) return null;
+  if (dismissedKey === config.updatedAt) return null;
+  function dismiss() {
+    if (!config) return;
+    setDismissedKey(config.updatedAt);
+    try {
+      localStorage.setItem("liftify:banner-dismissed", String(config.updatedAt));
+    } catch {
+      /* ignore */
+    }
+  }
+  return (
+    <div className="flex items-center gap-3 border-b border-accent/30 bg-accent/10 px-4 py-2.5 text-sm md:pr-28">
+      <Megaphone weight="fill" className="size-4 shrink-0 text-accent" />
+      <p className="min-w-0 flex-1">{config.bannerText}</p>
+      <button
+        type="button"
+        onClick={dismiss}
+        aria-label="Dismiss announcement"
+        className="shrink-0 text-muted-foreground transition-colors hover:text-foreground"
+      >
+        <X className="size-4" />
+      </button>
+    </div>
+  );
+}
 
 const DONATE_URL =
   process.env.NEXT_PUBLIC_DONATE_URL || "https://ko-fi.com/liftify";
@@ -95,6 +138,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const { user } = useUser();
   const { isAuthenticated } = useConvexAuth();
+  const isAdmin = useQuery(api.admin.isAdmin);
   const ensureUser = useMutation(api.users.getOrCreateCurrentUser);
   const setTimezone = useMutation(api.users.setTimezone);
 
@@ -184,6 +228,24 @@ export function AppShell({ children }: { children: ReactNode }) {
             })}
           </nav>
 
+          {isAdmin && (
+            <Link
+              href="/admin"
+              aria-current={pathname.startsWith("/admin") ? "page" : undefined}
+              className={`mb-1 flex items-center gap-3 rounded-field px-3 py-2.5 text-sm transition-colors ${
+                pathname.startsWith("/admin")
+                  ? "bg-accent/10 font-semibold text-accent"
+                  : "text-muted-foreground hover:bg-muted hover:text-foreground"
+              }`}
+            >
+              <ShieldCheck
+                weight={pathname.startsWith("/admin") ? "fill" : "regular"}
+                className="size-5"
+              />
+              Admin
+            </Link>
+          )}
+
           {accountRow}
         </aside>
 
@@ -213,7 +275,10 @@ export function AppShell({ children }: { children: ReactNode }) {
         </header>
 
         {/* md:pt-8 clears the fixed top-right utility pill on desktop. */}
-        <main className="flex-1 pb-24 md:pb-12 md:pt-8">{children}</main>
+        <main className="flex-1 pb-24 md:pb-12 md:pt-8">
+          <AnnouncementBanner />
+          {children}
+        </main>
 
         {/* Mobile bottom tab bar */}
         <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-surface-2 md:hidden">

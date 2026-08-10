@@ -35,37 +35,21 @@ import {
 } from "@phosphor-icons/react";
 import { StatCard } from "@/components/ui/stat-card";
 import { Heatmap } from "@/components/ui/heatmap";
+import { Card } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { EmptyState } from "@/components/ui/empty-state";
+import { PageHeader } from "@/components/ui/page-header";
 import { computeStreak } from "@/lib/streak";
-
-const DAY = 86_400_000;
+import { DAY_MS, startOfDay, startOfWeek, shortDate } from "@/lib/date";
 
 // Volt accent — recharts needs a real hex, so we can't use a token class here.
 const VOLT = "#d7f24a";
 const VOLT_FILL = "rgba(215, 242, 74, 0.1)";
 
-// Shared card styles so every panel on this page looks the same.
-const cardStyles = "rounded-[16px] border border-border bg-card p-4 sm:p-5";
-const heroCardStyles =
-  "rounded-[16px] border border-border-strong bg-card p-4 sm:p-5";
-const sectionLabelStyles = "mono-label text-[10px] text-muted-foreground";
+const sectionLabelStyles = "mono-label text-label text-muted-foreground";
 
-function startOfWeek(ms: number) {
-  const d = new Date(ms);
-  const dayFromMonday = (d.getDay() + 6) % 7;
-  d.setHours(0, 0, 0, 0);
-  return d.getTime() - dayFromMonday * DAY;
-}
-function startOfDay(ms: number) {
-  const d = new Date(ms);
-  d.setHours(0, 0, 0, 0);
-  return d.getTime();
-}
-function weekLabel(ms: number) {
-  return new Date(ms).toLocaleDateString(undefined, {
-    month: "short",
-    day: "numeric",
-  });
-}
+// Compact session length. Kept local — differs from lib/date's formatDuration:
+// this rounds to whole minutes and never shows seconds.
 function fmtDur(sec: number) {
   if (sec <= 0) return "—";
   const m = Math.round(sec / 60);
@@ -114,7 +98,7 @@ export default function ProgressPage() {
     const thisWeek = startOfWeek(Date.now());
     const buckets = new Map<number, { count: number; volume: number }>();
     for (let i = WEEKS - 1; i >= 0; i--) {
-      buckets.set(thisWeek - i * 7 * DAY, { count: 0, volume: 0 });
+      buckets.set(thisWeek - i * 7 * DAY_MS, { count: 0, volume: 0 });
     }
     // Iterate the RAW workouts here — workoutVolume folds body weight and
     // doubles dumbbells itself, so using loadWorkouts would double-count.
@@ -127,7 +111,7 @@ export default function ProgressPage() {
     weeks = [...buckets.entries()]
       .sort((a, b) => a[0] - b[0])
       .map(([weekStart, bucket]) => ({
-        label: weekLabel(weekStart),
+        label: shortDate(weekStart),
         count: bucket.count,
         volume: Math.round(bucket.volume),
       }));
@@ -173,10 +157,10 @@ export default function ProgressPage() {
   // bodyweight-only sessions so they don't show as a misleading 0.
   const isBodyweight = series.length > 0 && series.every((p) => p.e1rm === 0);
   const seriesData = isBodyweight
-    ? series.map((point) => ({ label: weekLabel(point.date), value: point.reps }))
+    ? series.map((point) => ({ label: shortDate(point.date), value: point.reps }))
     : series
         .filter((point) => point.e1rm > 0)
-        .map((point) => ({ label: weekLabel(point.date), value: point.e1rm }));
+        .map((point) => ({ label: shortDate(point.date), value: point.e1rm }));
 
   // Hero card headline: latest value + change since the first logged session.
   const hasTrend = seriesData.length >= 2;
@@ -192,20 +176,17 @@ export default function ProgressPage() {
   const heroUnit = isBodyweight ? "reps" : unit;
 
   return (
-    <div className="container-page flex flex-col gap-5 py-8">
-      <header>
-        <h1 className="font-display text-3xl font-black lg:text-4xl">
-          PROGRESS
-        </h1>
-        <p className={`${sectionLabelStyles} mt-1`}>LAST 8 WEEKS</p>
-      </header>
+    <div className="container-page flex flex-col gap-6 py-8">
+      <PageHeader eyebrow="Last 8 weeks" title="Progress" />
 
       {workouts === undefined ? (
         <ProgressSkeleton />
       ) : !hasData ? (
-        <div className="rounded-[16px] border border-dashed border-border bg-card p-8 text-center text-muted-foreground">
-          Log a few workouts and your charts will fill in here.
-        </div>
+        <EmptyState
+          icon={<Barbell weight="fill" className="size-5" />}
+          title="No progress yet"
+          description="Log a few workouts and your charts will fill in here."
+        />
       ) : (
         <>
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
@@ -254,7 +235,7 @@ export default function ProgressPage() {
 
           <div className="grid gap-5 lg:grid-cols-2">
             {exerciseOptions.length > 0 && (
-              <section className={heroCardStyles}>
+              <Card className="border-border-strong p-4 sm:p-5">
                 <div className="mb-3 flex items-center justify-between gap-2">
                   <div className="relative">
                     <select
@@ -262,7 +243,7 @@ export default function ProgressPage() {
                       onChange={(event) =>
                         setSelectedExercise(event.target.value)
                       }
-                      className="max-w-[180px] appearance-none truncate rounded-full bg-muted py-1.5 pl-3 pr-8 font-mono text-[11px] text-bright focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                      className="max-w-[180px] appearance-none truncate rounded-full bg-muted py-1.5 pl-3 pr-8 font-mono text-label-lg text-bright focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
                     >
                       {exerciseOptions.map((option) => (
                         <option key={option.name} value={option.name}>
@@ -288,10 +269,10 @@ export default function ProgressPage() {
                     {heroUnit}
                   </span>
                   {hasTrend && (
-                    <span className="flex items-center gap-1 rounded-md bg-accent/10 px-2 py-1 font-mono text-[10px] text-accent">
+                    <Badge tone="accent">
                       <TrendUp weight="bold" className="size-3" />
                       {changeLabel} vs start
-                    </span>
+                    </Badge>
                   )}
                 </div>
 
@@ -333,7 +314,7 @@ export default function ProgressPage() {
                     Log this exercise at least twice to see your trend.
                   </p>
                 )}
-              </section>
+              </Card>
             )}
 
             <ChartCard title="Workouts per week">
@@ -389,15 +370,15 @@ export default function ProgressPage() {
             </LineChart>
           </ChartCard>
 
-          <section className={cardStyles}>
+          <Card className="p-4 sm:p-5">
             <div className="mb-4 flex items-center justify-between gap-2">
               <p className={sectionLabelStyles}>Consistency</p>
-              <p className="mono-label text-[9px] text-dim">
+              <p className="mono-label text-label text-dim">
                 Each square = a day you trained
               </p>
             </div>
             <Heatmap values={dayValues} recovery={recoveryDays} />
-          </section>
+          </Card>
         </>
       )}
     </div>
@@ -406,25 +387,25 @@ export default function ProgressPage() {
 
 function ProgressSkeleton() {
   return (
-    <div className="flex animate-pulse flex-col gap-5">
+    <div className="flex animate-pulse flex-col gap-6">
       {/* Stat row */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
         {Array.from({ length: 5 }).map((_, i) => (
           <div
             key={i}
-            className="h-24 rounded-[14px] border border-border bg-muted"
+            className="h-24 rounded-card border border-border bg-muted"
           />
         ))}
       </div>
       {/* Chart cards */}
       {Array.from({ length: 3 }).map((_, i) => (
-        <div key={i} className={cardStyles}>
+        <Card key={i} className="p-4 sm:p-5">
           <div className="h-4 w-32 rounded bg-muted" />
-          <div className="mt-4 h-52 rounded-xl bg-muted" />
-        </div>
+          <div className="mt-4 h-52 rounded-card bg-muted" />
+        </Card>
       ))}
       {/* Consistency heatmap */}
-      <div className={cardStyles}>
+      <Card className="p-4 sm:p-5">
         <div className="h-4 w-24 rounded bg-muted" />
         <div className="mt-4 flex gap-1.5">
           {Array.from({ length: 13 }).map((_, i) => (
@@ -435,7 +416,7 @@ function ProgressSkeleton() {
             </div>
           ))}
         </div>
-      </div>
+      </Card>
     </div>
   );
 }
@@ -450,7 +431,7 @@ function ChartCard({
   children: React.ReactElement;
 }) {
   return (
-    <section className={cardStyles}>
+    <Card className="p-4 sm:p-5">
       <div className="relative flex items-center gap-1.5">
         <p className={sectionLabelStyles}>{title}</p>
         {hint && (
@@ -464,7 +445,7 @@ function ChartCard({
             </button>
             <span
               role="tooltip"
-              className="pointer-events-none absolute left-0 top-full z-30 mt-2 w-full max-w-xs rounded-xl border border-border bg-card p-3 text-xs leading-relaxed text-foreground opacity-0 shadow-lg transition-opacity duration-150 peer-hover:opacity-100 peer-focus:opacity-100"
+              className="pointer-events-none absolute left-0 top-full z-30 mt-2 w-full max-w-xs rounded-card border border-border bg-card p-3 text-xs leading-relaxed text-foreground opacity-0 shadow-lg transition-opacity duration-150 peer-hover:opacity-100 peer-focus:opacity-100"
             >
               {hint}
             </span>
@@ -476,6 +457,6 @@ function ChartCard({
           {children}
         </ResponsiveContainer>
       </div>
-    </section>
+    </Card>
   );
 }

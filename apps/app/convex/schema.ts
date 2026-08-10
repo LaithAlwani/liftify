@@ -40,6 +40,9 @@ export default defineSchema({
     onboardedAt: v.optional(v.number()), // epoch ms; set only when the user FINISHES the welcome flow
     onboardingSkippedAt: v.optional(v.number()), // epoch ms; set when they tap "Skip for now" instead
 
+    // Admin access. Absent = normal user. Gate every admin function on this.
+    role: v.optional(v.union(v.literal("admin"), v.literal("user"))),
+
     createdAt: v.number(),
   }).index("by_clerk_id", ["clerkId"]),
 
@@ -158,4 +161,36 @@ export default defineSchema({
   })
     .index("by_user", ["userId"])
     .index("by_endpoint", ["endpoint"]),
+
+  // Admin-managed affiliate links that drive the Shop page. Mirrors the old
+  // static ShopProduct shape + admin fields. `active` is the deploy toggle.
+  affiliateLinks: defineTable({
+    title: v.string(),
+    category: v.string(),
+    blurb: v.optional(v.string()),
+    price: v.optional(v.string()),
+    image: v.optional(v.string()),
+    asin: v.optional(v.string()), // Amazon ASIN — tag appended at link time
+    url: v.optional(v.string()), // full-URL override (used as-is)
+    active: v.boolean(),
+    sortOrder: v.number(),
+    clickCount: v.number(),
+    createdAt: v.number(),
+  })
+    .index("by_active_sort", ["active", "sortOrder"])
+    .index("by_category", ["category"]),
+
+  // One row per outbound affiliate click — powers the performance charts.
+  clickEvents: defineTable({
+    linkId: v.id("affiliateLinks"),
+    at: v.number(),
+    userId: v.optional(v.id("users")),
+  }).index("by_link_at", ["linkId", "at"]),
+
+  // Singleton app config (one row) — currently the site-wide announcement banner.
+  config: defineTable({
+    bannerText: v.optional(v.string()),
+    bannerActive: v.boolean(),
+    updatedAt: v.number(),
+  }),
 });

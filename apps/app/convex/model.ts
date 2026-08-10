@@ -60,3 +60,13 @@ export function hasAccess(_user: Doc<"users">, _now: number): boolean {
 export function requireAccess(_user: Doc<"users">, _now: number): void {
   // Free app — nothing to gate.
 }
+
+// Admin gate — server-authoritative. Every admin query/mutation must call this
+// first. Throws unless the signed-in user's role is "admin".
+export async function requireAdmin(
+  ctx: QueryCtx | MutationCtx,
+): Promise<Doc<"users">> {
+  const user = await getCurrentUserOrThrow(ctx);
+  if (user.role !== "admin") throw new Error("Admin only");
+  return user;
+}

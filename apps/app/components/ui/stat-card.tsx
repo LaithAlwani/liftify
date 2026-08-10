@@ -16,10 +16,10 @@ export function StatCard({
   variant?: "default" | "spark";
 }) {
   const isSpark = variant === "spark";
-  const cardStyles = `rounded-[14px] border bg-card p-3.5 sm:p-4 ${
+  const cardStyles = `rounded-card border bg-card p-3.5 sm:p-4 ${
     isSpark ? "border-spark/40" : "border-border"
   }`;
-  const labelStyles = `mono-label flex items-center gap-1.5 text-[9px] sm:text-[10px] ${
+  const labelStyles = `mono-label flex items-center gap-1.5 text-label ${
     isSpark ? "text-spark-lite" : "text-muted-foreground"
   }`;
   const valueStyles = `font-display text-3xl font-black leading-none sm:text-4xl ${
@@ -35,7 +35,7 @@ export function StatCard({
       <span className="mt-2 flex items-baseline gap-1.5">
         <span className={valueStyles}>{value}</span>
         {unit && (
-          <span className="font-mono text-[11px] text-muted-foreground sm:text-xs">
+          <span className="font-mono text-label-lg text-muted-foreground sm:text-xs">
             {unit}
           </span>
         )}

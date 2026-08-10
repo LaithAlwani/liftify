@@ -17,6 +17,9 @@ import {
 } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
 import { IconButton } from "@/components/ui/icon-button";
+import { Card } from "@/components/ui/card";
+import { Input } from "@/components/ui/field";
+import { EmptyState } from "@/components/ui/empty-state";
 import { ExercisePicker } from "@/components/exercise-picker";
 import { kindByLibrary, type Kind } from "@/lib/prs";
 
@@ -42,15 +45,12 @@ const toNum = (value: string) => (value.trim() === "" ? 0 : Number(value));
 // A newly added exercise starts with one target set (3 sets of this is a tap away).
 const DEFAULT_TARGET_REPS = "10";
 
-const inputBase =
-  "rounded-xl border border-border bg-background px-3 text-base text-foreground " +
-  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
 const stepperStyles =
-  "flex items-center gap-1 rounded-[10px] border border-border-strong bg-card p-1";
+  "flex items-center gap-1 rounded-field border border-border-strong bg-card p-1";
 const stepperButtonStyles =
-  "flex size-7 shrink-0 items-center justify-center rounded-lg bg-muted text-bright transition-[filter] hover:brightness-125";
+  "flex size-7 shrink-0 items-center justify-center rounded-field bg-muted text-bright transition-[filter] hover:brightness-125";
 const dashedAddStyles =
-  "flex w-full items-center justify-center gap-2 rounded-[14px] border-[1.5px] border-dashed " +
+  "flex w-full items-center justify-center gap-2 rounded-card border-[1.5px] border-dashed " +
   "border-border-strong px-4 py-4 text-accent transition-colors hover:border-accent hover:bg-accent/5";
 
 export function TemplateEditor({ templateId }: { templateId?: string }) {
@@ -216,7 +216,7 @@ export function TemplateEditor({ templateId }: { templateId?: string }) {
           <CaretLeft weight="bold" className="size-5" />
         </button>
         <div className="min-w-0 flex-1">
-          <p className="mono-label text-[10px] text-muted-foreground">
+          <p className="mono-label text-label text-muted-foreground">
             {isEditing ? "EDIT TEMPLATE" : "NEW TEMPLATE"}
           </p>
           <div className="flex items-center gap-2">
@@ -235,17 +235,14 @@ export function TemplateEditor({ templateId }: { templateId?: string }) {
       {entries.length > 0 && (
         <section className="flex flex-col gap-3">
           {entries.map((entry) => (
-            <div
-              key={entry.id}
-              className="overflow-hidden rounded-2xl border border-border bg-card"
-            >
+            <Card key={entry.id} className="overflow-hidden">
               <div className="flex items-center gap-3 border-b border-muted p-4">
                 <span className="flex min-w-0 flex-1 flex-col">
-                  <span className="truncate font-display text-[15px] font-extrabold">
+                  <span className="truncate font-display text-sm font-extrabold">
                     {entry.name}
                   </span>
                   {kindLabel(entry.kind) && (
-                    <span className="mono-label text-[9px] text-muted-foreground">
+                    <span className="mono-label text-label text-muted-foreground">
                       {kindLabel(entry.kind)}
                     </span>
                   )}
@@ -297,11 +294,11 @@ export function TemplateEditor({ templateId }: { templateId?: string }) {
                         <Plus weight="bold" className="size-3" />
                       </button>
                     </div>
-                    <span className="mono-label text-[9px] text-dim">REPS</span>
+                    <span className="mono-label text-label text-dim">REPS</span>
 
                     {/* Optional target weight (blank = fill in live) */}
                     <div className="relative ml-auto">
-                      <input
+                      <Input
                         inputMode="decimal"
                         placeholder="—"
                         value={set.weight}
@@ -309,9 +306,9 @@ export function TemplateEditor({ templateId }: { templateId?: string }) {
                           updateSet(entry.id, set.id, { weight: e.target.value })
                         }
                         aria-label={`Set ${index + 1} target weight`}
-                        className={`h-9 w-24 pr-9 text-center ${inputBase}`}
+                        className="h-9 w-24! py-0 pr-9 text-center"
                       />
-                      <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 font-mono text-[10px] text-muted-foreground">
+                      <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 font-mono text-label text-muted-foreground">
                         {unit}
                       </span>
                     </div>
@@ -322,7 +319,7 @@ export function TemplateEditor({ templateId }: { templateId?: string }) {
                         type="button"
                         onClick={() => removeSet(entry.id, set.id)}
                         aria-label={`Remove set ${index + 1}`}
-                        className="flex size-7 items-center justify-center rounded-lg text-dim transition-colors hover:bg-muted hover:text-red-500"
+                        className="flex size-7 items-center justify-center rounded-full text-dim transition-colors hover:bg-muted hover:text-danger"
                       >
                         <X className="size-3.5" />
                       </button>
@@ -335,28 +332,26 @@ export function TemplateEditor({ templateId }: { templateId?: string }) {
                 <button
                   type="button"
                   onClick={() => addSet(entry.id)}
-                  className="mono-label mt-1 flex items-center gap-1.5 self-start rounded-full border border-border-strong px-3 py-1.5 text-[11px] text-accent transition-colors hover:bg-accent/10"
+                  className="mono-label mt-1 flex items-center gap-1.5 self-start rounded-full border border-border-strong px-3 py-1.5 text-label-lg text-accent transition-colors hover:bg-accent/10"
                 >
                   <Plus weight="bold" className="size-3.5" />
                   ADD SET
                 </button>
               </div>
-            </div>
+            </Card>
           ))}
         </section>
       )}
 
       {entries.length === 0 && (
-        <div className="rounded-[14px] border border-dashed border-border p-8 text-center">
-          <Barbell className="mx-auto size-6 text-dim" />
-          <p className="mono-label mt-2 text-[10px] text-dim">No exercises yet</p>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Add the exercises for this day and set target reps.
-          </p>
-        </div>
+        <EmptyState
+          icon={<Barbell weight="fill" className="size-5" />}
+          title="No exercises yet"
+          description="Add the exercises for this day and set target reps."
+        />
       )}
 
-      {error && <p className="text-sm text-red-500">{error}</p>}
+      {error && <p className="text-sm text-danger">{error}</p>}
 
       {/* Add exercise — opens the shared library picker */}
       <button onClick={() => setPickerOpen(true)} className={dashedAddStyles}>

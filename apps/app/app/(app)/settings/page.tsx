@@ -16,6 +16,9 @@ import {
 import { PushToggle } from "@/components/push-toggle";
 import { InstallPrompt } from "@/components/install-prompt";
 import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { Modal } from "@/components/ui/modal";
+import { PageHeader } from "@/components/ui/page-header";
 import {
   Segmented,
   Stepper,
@@ -25,14 +28,13 @@ import {
 import { EQUIPMENT_OPTIONS } from "@/lib/presets";
 
 // Shared style constants so the whole page is easy to re-theme in one place.
-const cardStyles =
-  "flex flex-col gap-4 rounded-[16px] border border-border bg-card p-5";
+// The card surface (radius + border + background) now comes from <Card>; these
+// only cover the inner layout so every section stays visually consistent.
+const cardBodyStyles = "flex flex-col gap-4 p-5";
 const cardTitleStyles = "font-display text-base font-extrabold";
 const rowStyles = "flex items-center justify-between gap-4";
 const rowLabelStyles = "text-sm font-semibold";
 const rowDescStyles = "mt-0.5 text-xs leading-snug text-muted-foreground";
-const steelButtonStyles =
-  "inline-flex items-center gap-2 rounded-[10px] border border-border-strong px-4 py-3 font-mono text-xs uppercase tracking-[0.08em] text-bright transition-colors hover:border-accent/40 disabled:opacity-50";
 
 function toCsv(rows: (string | number)[][]) {
   return rows
@@ -103,6 +105,19 @@ const UNIT_OPTIONS: SegmentOption<"lb" | "kg">[] = [
   { key: "lb", label: "LB" },
   { key: "kg", label: "KG" },
 ];
+
+// Lightweight placeholder shown until the user's profile has loaded, so the
+// preference controls don't flash their default values first.
+function SettingsSkeleton() {
+  return (
+    <div className="container-page flex max-w-2xl animate-pulse flex-col gap-4 py-8">
+      <div className="h-9 w-40 rounded-lg bg-muted" />
+      {Array.from({ length: 5 }).map((_, i) => (
+        <div key={i} className="h-32 rounded-card border border-border bg-card" />
+      ))}
+    </div>
+  );
+}
 
 export default function SettingsPage() {
   const router = useRouter();
@@ -269,35 +284,33 @@ export default function SettingsPage() {
     }
   }
 
+  // Hold the page until the profile row exists so preference controls don't
+  // flash their defaults before the saved values arrive.
+  if (!me) return <SettingsSkeleton />;
+
   const name =
-    [me?.firstName, me?.lastName].filter(Boolean).join(" ") ||
+    [me.firstName, me.lastName].filter(Boolean).join(" ") ||
     user?.fullName ||
     "—";
-  const email = me?.email || user?.primaryEmailAddress?.emailAddress || "—";
+  const email = me.email || user?.primaryEmailAddress?.emailAddress || "—";
 
   return (
     <div className="container-page flex max-w-2xl flex-col gap-4 py-8">
-      {/* Mobile header — big title with a back caret. */}
-      <div className="flex items-center gap-2.5 sm:hidden">
+      {/* Header — mono eyebrow + big title, with a mobile-only back caret. */}
+      <div className="flex items-center gap-2.5">
         <button
           type="button"
           onClick={() => router.back()}
           aria-label="Go back"
-          className="text-muted-foreground transition-colors hover:text-foreground"
+          className="text-muted-foreground transition-colors hover:text-foreground sm:hidden"
         >
           <CaretLeft weight="bold" className="size-5" />
         </button>
-        <h1 className="font-display text-3xl font-black">SETTINGS</h1>
-      </div>
-
-      {/* Desktop header — mono eyebrow + big title. */}
-      <div className="hidden sm:block">
-        <p className="mono-label text-[11px] text-muted-foreground">PREFERENCES</p>
-        <h1 className="font-display text-4xl font-black leading-none">SETTINGS</h1>
+        <PageHeader eyebrow="Preferences" title="Settings" className="flex-1" />
       </div>
 
       {/* Units */}
-      <section className={cardStyles}>
+      <Card className={cardBodyStyles}>
         <h3 className={cardTitleStyles}>Units</h3>
         <div className={rowStyles}>
           <div className="min-w-0">
@@ -312,10 +325,10 @@ export default function SettingsPage() {
             }}
           />
         </div>
-      </section>
+      </Card>
 
       {/* Weight room — which equipment the user has, powers starter days. */}
-      <section className={cardStyles}>
+      <Card className={cardBodyStyles}>
         <div>
           <h3 className={cardTitleStyles}>Your weight room</h3>
           <p className={rowDescStyles}>
@@ -352,16 +365,16 @@ export default function SettingsPage() {
             );
           })}
         </div>
-      </section>
+      </Card>
 
       {/* Text size */}
-      <section className={cardStyles}>
+      <Card className={cardBodyStyles}>
         <h3 className={cardTitleStyles}>Text size</h3>
         <Segmented options={FONT_SIZES} value={fontSize} onChange={applyFontSize} />
-      </section>
+      </Card>
 
       {/* Training */}
-      <section className={cardStyles}>
+      <Card className={cardBodyStyles}>
         <h3 className={cardTitleStyles}>Training</h3>
         <div className={rowStyles}>
           <div className="min-w-0">
@@ -387,10 +400,10 @@ export default function SettingsPage() {
             onInc={() => changeRest(rest + 15)}
           />
         </div>
-      </section>
+      </Card>
 
       {/* Reminders */}
-      <section className={cardStyles}>
+      <Card className={cardBodyStyles}>
         <h3 className={cardTitleStyles}>Reminders</h3>
         <div className={rowStyles}>
           <div className="min-w-0">
@@ -421,7 +434,7 @@ export default function SettingsPage() {
           on={rem.remindRest}
           onToggle={() => toggleReminder("remindRest")}
         />
-      </section>
+      </Card>
 
       {/* Install nudge — reminders only reach a closed app once installed. */}
       <InstallPrompt />
@@ -430,30 +443,30 @@ export default function SettingsPage() {
       <PushToggle />
 
       {/* Export data */}
-      <section className={cardStyles}>
+      <Card className={cardBodyStyles}>
         <h3 className={cardTitleStyles}>Export your data</h3>
         <div className="flex flex-wrap gap-2.5">
-          <button
+          <Button
+            variant="secondary"
             onClick={exportWorkouts}
             disabled={exporting !== null}
-            className={steelButtonStyles}
           >
             <DownloadSimple weight="bold" className="size-4" />
             {exporting === "workouts" ? "Exporting…" : "Workouts CSV"}
-          </button>
-          <button
+          </Button>
+          <Button
+            variant="secondary"
             onClick={exportBody}
             disabled={exporting !== null}
-            className={steelButtonStyles}
           >
             <DownloadSimple weight="bold" className="size-4" />
             {exporting === "body" ? "Exporting…" : "Body log CSV"}
-          </button>
+          </Button>
         </div>
-      </section>
+      </Card>
 
       {/* Account */}
-      <section className={cardStyles}>
+      <Card className={cardBodyStyles}>
         <h3 className={cardTitleStyles}>Account</h3>
         <dl className="flex flex-col gap-2 text-sm">
           <div className="flex justify-between gap-4">
@@ -466,72 +479,64 @@ export default function SettingsPage() {
           </div>
         </dl>
         <SignOutButton redirectUrl="/sign-in">
-          <button
-            className={`${steelButtonStyles} self-start`}
-          >
+          <Button variant="secondary" className="self-start">
             <SignOut weight="bold" className="size-4" />
             Sign out
-          </button>
+          </Button>
         </SignOutButton>
-      </section>
+      </Card>
 
       {/* Danger zone */}
-      <section className="flex flex-col gap-3 rounded-[16px] border border-red-500/30 bg-card p-5">
-        <h3 className={`${cardTitleStyles} text-red-500`}>Danger zone</h3>
+      <section className="flex flex-col gap-3 rounded-card border border-danger/30 bg-card p-5">
+        <h3 className={`${cardTitleStyles} text-danger`}>Danger zone</h3>
         <p className="text-xs leading-snug text-muted-foreground">
           Permanently delete your account and all data. This cannot be undone.
         </p>
-        <button
+        <Button
+          variant="danger-outline"
+          className="self-start"
           onClick={() => {
             setDeleteError(null);
             setConfirmDelete(true);
           }}
-          className="inline-flex items-center gap-2 self-start rounded-[10px] border border-red-500/40 px-4 py-3 font-mono text-xs uppercase tracking-[0.08em] text-red-500 transition-colors hover:bg-red-500/10"
         >
           <TrashSimple weight="bold" className="size-4" />
           Delete account
-        </button>
+        </Button>
       </section>
 
-      {confirmDelete && (
-        <div
-          className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 p-4 sm:items-center"
-          onClick={() => !deleting && setConfirmDelete(false)}
-          role="dialog"
-          aria-modal="true"
-        >
-          <div
-            className="w-full max-w-sm rounded-[16px] border border-border bg-card p-6 shadow-xl"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-center gap-2 text-red-500">
-              <WarningCircle weight="fill" className="size-5" />
-              <h2 className="font-display text-lg font-extrabold">
-                Delete account?
-              </h2>
-            </div>
-            <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-              This permanently deletes your Liftify login and every workout and
-              body entry you&apos;ve logged. This cannot be undone.
-            </p>
-            {deleteError && (
-              <p className="mt-3 text-sm text-red-500">{deleteError}</p>
-            )}
-            <div className="mt-6 flex justify-end gap-2">
-              <Button
-                variant="secondary"
-                onClick={() => setConfirmDelete(false)}
-                disabled={deleting}
-              >
-                Cancel
-              </Button>
-              <Button variant="danger" onClick={handleDelete} disabled={deleting}>
-                {deleting ? "Deleting…" : "Delete account"}
-              </Button>
-            </div>
+      <Modal
+        open={confirmDelete}
+        onClose={() => {
+          if (!deleting) setConfirmDelete(false);
+        }}
+        title="Delete account?"
+        footer={
+          <div className="flex justify-end gap-2">
+            <Button
+              variant="secondary"
+              onClick={() => setConfirmDelete(false)}
+              disabled={deleting}
+            >
+              Cancel
+            </Button>
+            <Button variant="danger" onClick={handleDelete} disabled={deleting}>
+              {deleting ? "Deleting…" : "Delete account"}
+            </Button>
           </div>
+        }
+      >
+        <div className="flex items-start gap-2 text-danger">
+          <WarningCircle weight="fill" className="size-5 shrink-0" />
+          <p className="text-sm leading-relaxed text-muted-foreground">
+            This permanently deletes your Liftify login and every workout and
+            body entry you&apos;ve logged. This cannot be undone.
+          </p>
         </div>
-      )}
+        {deleteError && (
+          <p className="mt-3 text-sm text-danger">{deleteError}</p>
+        )}
+      </Modal>
     </div>
   );
 }

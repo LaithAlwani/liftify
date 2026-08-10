@@ -23,6 +23,12 @@ import {
 } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
 import { IconButton } from "@/components/ui/icon-button";
+import { Card } from "@/components/ui/card";
+import { PageHeader } from "@/components/ui/page-header";
+import { Field, Input } from "@/components/ui/field";
+import { EmptyState } from "@/components/ui/empty-state";
+import { Badge } from "@/components/ui/badge";
+import { shortDate } from "@/lib/date";
 
 const MEAS_KEYS = ["waist", "chest", "arms", "hips", "thighs"] as const;
 type MeasKey = (typeof MEAS_KEYS)[number];
@@ -31,24 +37,12 @@ type MeasKey = (typeof MEAS_KEYS)[number];
 const VOLT = "#d7f24a";
 
 // Shared style constants so the user can tweak the look in one place.
-const inputBase =
-  "rounded-xl border border-border bg-background px-3 text-base text-foreground " +
-  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
-const fieldLabel =
-  "flex flex-col gap-1.5 mono-label text-[10px] text-muted-foreground";
-const sectionLabel =
-  "mb-2 mono-label text-[10px] tracking-[0.2em] text-muted-foreground";
-const measTile = "rounded-xl border border-border bg-card px-3 py-3";
+const sectionLabel = "mb-2 mono-label text-label text-muted-foreground";
+// History rows are buttons/list items (not the Card div), so keep a shape-locked
+// class string here rather than the Card primitive.
 const historyRow =
-  "flex w-full items-center justify-between gap-3 rounded-xl border border-border " +
+  "flex w-full items-center justify-between gap-3 rounded-card border border-border " +
   "bg-card px-4 py-3 text-left transition-colors hover:border-border-strong";
-
-function shortDate(ms: number) {
-  return new Date(ms).toLocaleDateString(undefined, {
-    month: "short",
-    day: "numeric",
-  });
-}
 
 function measLabel(key: MeasKey) {
   return key.toUpperCase();
@@ -189,17 +183,42 @@ export default function BodyPage() {
   const hasEntries = entries && entries.length > 0;
   const hasTrend = chartData.length >= 2;
 
+  // Header add/close toggle — a pill button that reveals the add-entry form.
+  const toggleButton = (
+    <button
+      type="button"
+      onClick={() => setOpen((value) => !value)}
+      className={
+        open
+          ? "inline-flex items-center gap-1.5 rounded-full border border-border bg-muted px-4 py-2 font-mono text-label-lg font-semibold uppercase tracking-[0.06em] text-foreground transition-colors hover:bg-card"
+          : "inline-flex items-center gap-1.5 rounded-full bg-accent px-4 py-2 font-mono text-label-lg font-semibold uppercase tracking-[0.06em] text-accent-foreground transition hover:brightness-105"
+      }
+    >
+      {open ? (
+        <>
+          <X weight="bold" className="size-3.5" />
+          Close
+        </>
+      ) : (
+        <>
+          <Plus weight="bold" className="size-3.5" />
+          Add entry
+        </>
+      )}
+    </button>
+  );
+
   // The current-weight card is reused inside two different desktop layouts,
   // so define it once here.
   const weightCard = (
-    <section className="rounded-2xl border border-border-strong bg-card p-4 sm:p-5">
+    <Card className="p-4 sm:p-5">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <p className="mono-label text-[10px] text-muted-foreground">
+          <p className="mono-label text-label text-muted-foreground">
             Current weight
           </p>
           <p className="mt-1 flex items-baseline gap-2">
-            <span className="font-display text-[42px] font-black leading-none tabular-nums sm:text-5xl">
+            <span className="font-display text-4xl font-black leading-none tabular-nums sm:text-5xl">
               {latest ? latest.weight : "—"}
             </span>
             <span className="font-mono text-sm text-muted-foreground">
@@ -208,14 +227,14 @@ export default function BodyPage() {
           </p>
         </div>
         {weightDelta !== null && weightDelta !== 0 && (
-          <span className="inline-flex items-center gap-1 rounded-lg bg-accent/10 px-2.5 py-1.5 font-mono text-[11px] text-accent">
+          <Badge tone={weightDelta > 0 ? "accent" : "neutral"}>
             {weightDelta < 0 ? (
               <TrendDown weight="bold" className="size-3" />
             ) : (
               <TrendUp weight="bold" className="size-3" />
             )}
             {Math.abs(weightDelta)} {unit}
-          </span>
+          </Badge>
         )}
       </div>
 
@@ -270,10 +289,10 @@ export default function BodyPage() {
         </p>
       )}
 
-      <p className="mt-2 text-center mono-label text-[9px] tracking-[0.14em] text-muted-foreground">
+      <p className="mt-2 text-center mono-label text-label text-muted-foreground">
         12-week trend
       </p>
-    </section>
+    </Card>
   );
 
   const measurementsBlock = shownMeasKeys.length > 0 && (
@@ -281,19 +300,19 @@ export default function BodyPage() {
       <p className={sectionLabel}>Latest measurements</p>
       <div className="grid grid-cols-3 gap-2 lg:grid-cols-2">
         {shownMeasKeys.map((key) => (
-          <div key={key} className={measTile}>
-            <p className="mono-label text-[9px] tracking-[0.14em] text-muted-foreground">
+          <Card key={key} className="px-3 py-3">
+            <p className="mono-label text-label text-muted-foreground">
               {measLabel(key)}
             </p>
             <p className="mt-1 flex items-baseline gap-1">
               <span className="font-display text-2xl font-black leading-none tabular-nums">
                 {latestMeas?.[key]}
               </span>
-              <span className="font-mono text-[10px] text-muted-foreground">
+              <span className="font-mono text-label text-muted-foreground">
                 in
               </span>
             </p>
-          </div>
+          </Card>
         ))}
       </div>
     </section>
@@ -302,43 +321,22 @@ export default function BodyPage() {
   return (
     <div className="container-page flex flex-col gap-6 py-8">
       {/* Header */}
-      <div className="flex items-end justify-between gap-3">
-        <div>
-          <p className="mono-label hidden text-[11px] tracking-[0.18em] text-muted-foreground md:block">
-            Weight &amp; measurements
-          </p>
-          <h1 className="font-display text-3xl font-black md:text-4xl">BODY</h1>
-        </div>
-        <button
-          type="button"
-          onClick={() => setOpen((value) => !value)}
-          className={
-            open
-              ? "inline-flex items-center gap-1.5 rounded-full border border-border bg-muted px-4 py-2 font-mono text-[11px] font-semibold uppercase tracking-[0.06em] text-foreground transition-colors hover:bg-card"
-              : "inline-flex items-center gap-1.5 rounded-full bg-accent px-4 py-2 font-mono text-[11px] font-semibold uppercase tracking-[0.06em] text-accent-foreground transition hover:brightness-105"
-          }
-        >
-          {open ? (
-            <>
-              <X weight="bold" className="size-3.5" />
-              Close
-            </>
-          ) : (
-            <>
-              <Plus weight="bold" className="size-3.5" />
-              Add entry
-            </>
-          )}
-        </button>
-      </div>
+      <PageHeader
+        eyebrow="Weight & measurements"
+        title="Body"
+        action={toggleButton}
+      />
 
       {/* Add entry form */}
       {open && (
-        <div className="rounded-2xl border border-border bg-card p-5">
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-end">
-            <label className={`flex-1 ${fieldLabel}`}>
-              Weight ({unit})
-              <input
+        <Card className="p-5">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
+            <Field
+              label={`Weight (${unit})`}
+              error={error ?? undefined}
+              className="flex-1"
+            >
+              <Input
                 type="number"
                 inputMode="decimal"
                 step="0.1"
@@ -346,23 +344,20 @@ export default function BodyPage() {
                 autoFocus
                 value={weight}
                 onChange={(e) => setWeight(e.target.value)}
-                className={`h-11 ${inputBase}`}
               />
-            </label>
-            <label className={`flex-[2] ${fieldLabel}`}>
-              Notes (optional)
-              <input
+            </Field>
+            <Field label="Notes (optional)" className="flex-2">
+              <Input
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
-                className={`h-11 ${inputBase}`}
               />
-            </label>
+            </Field>
           </div>
 
           <button
             type="button"
             onClick={() => setShowMeas((value) => !value)}
-            className="mt-4 flex items-center gap-1 mono-label text-[10px] text-muted-foreground transition-colors hover:text-foreground"
+            className="mt-4 flex items-center gap-1 mono-label text-label text-muted-foreground transition-colors hover:text-foreground"
           >
             <CaretDown
               className={`size-4 transition-transform ${showMeas ? "rotate-180" : ""}`}
@@ -372,9 +367,8 @@ export default function BodyPage() {
           {showMeas && (
             <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-5">
               {MEAS_KEYS.map((key) => (
-                <label key={key} className={fieldLabel}>
-                  {measLabel(key)}
-                  <input
+                <Field key={key} label={measLabel(key)}>
+                  <Input
                     type="number"
                     inputMode="decimal"
                     step="0.1"
@@ -383,29 +377,27 @@ export default function BodyPage() {
                     onChange={(e) =>
                       setMeas((prev) => ({ ...prev, [key]: e.target.value }))
                     }
-                    className={`h-11 ${inputBase}`}
                   />
-                </label>
+                </Field>
               ))}
             </div>
           )}
-
-          {error && <p className="mt-3 text-sm text-red-500">{error}</p>}
 
           <div className="mt-4 flex justify-end">
             <Button onClick={add} disabled={saving}>
               {saving ? "Saving…" : "Save entry"}
             </Button>
           </div>
-        </div>
+        </Card>
       )}
 
       {entries === undefined ? (
         <BodySkeleton />
       ) : !hasEntries ? (
-        <div className="rounded-2xl border border-dashed border-border p-8 text-center text-sm text-muted-foreground">
-          No entries yet. Add your first weigh-in to start tracking progress.
-        </div>
+        <EmptyState
+          title="No entries yet"
+          description="Add your first weigh-in to start tracking progress."
+        />
       ) : (
         <>
           {/* Weight card + latest measurements */}
@@ -424,86 +416,79 @@ export default function BodyPage() {
             <ul className="grid grid-cols-1 gap-2 lg:grid-cols-2">
               {entries.slice(0, 60).map((entry) =>
                 editingId === entry._id ? (
-                  <li
-                    key={entry._id}
-                    className="rounded-xl border border-border-strong bg-card p-4 lg:col-span-2"
-                  >
-                    <div className="flex justify-end">
-                      <button
-                        type="button"
-                        aria-label="Cancel"
-                        onClick={() => setEditingId(null)}
-                        className="-mr-1 -mt-1 flex size-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-                      >
-                        <X className="size-4" />
-                      </button>
-                    </div>
-                    <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
-                      <label className={`flex-1 ${fieldLabel}`}>
-                        Weight ({unit})
-                        <input
-                          type="number"
-                          inputMode="decimal"
-                          step="0.1"
-                          min="0"
-                          autoFocus
-                          value={editWeight}
-                          onChange={(ev) => setEditWeight(ev.target.value)}
-                          className={`h-11 ${inputBase}`}
-                        />
-                      </label>
-                      <label className={`flex-[2] ${fieldLabel}`}>
-                        Notes
-                        <input
-                          value={editNotes}
-                          onChange={(ev) => setEditNotes(ev.target.value)}
-                          className={`h-11 ${inputBase}`}
-                        />
-                      </label>
-                    </div>
-                    <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
-                      {MEAS_KEYS.map((key) => (
-                        <label key={key} className={fieldLabel}>
-                          {measLabel(key)} (in)
-                          <input
+                  <li key={entry._id} className="lg:col-span-2">
+                    <Card className="p-4">
+                      <div className="flex justify-end">
+                        <IconButton
+                          aria-label="Cancel"
+                          onClick={() => setEditingId(null)}
+                          className="-mr-1 -mt-1"
+                        >
+                          <X className="size-4" />
+                        </IconButton>
+                      </div>
+                      <div className="flex flex-col gap-3 sm:flex-row sm:items-start">
+                        <Field
+                          label={`Weight (${unit})`}
+                          error={editError ?? undefined}
+                          className="flex-1"
+                        >
+                          <Input
                             type="number"
                             inputMode="decimal"
                             step="0.1"
                             min="0"
-                            value={editMeas[key]}
-                            onChange={(ev) =>
-                              setEditMeas((m) => ({
-                                ...m,
-                                [key]: ev.target.value,
-                              }))
-                            }
-                            className={`h-11 ${inputBase}`}
+                            autoFocus
+                            value={editWeight}
+                            onChange={(ev) => setEditWeight(ev.target.value)}
                           />
-                        </label>
-                      ))}
-                    </div>
-                    {editError && (
-                      <p className="mt-2 text-sm text-red-500">{editError}</p>
-                    )}
-                    <div className="mt-3 flex items-center justify-between gap-2">
-                      <IconButton
-                        variant="danger"
-                        aria-label="Delete entry"
-                        onClick={() => {
-                          removeEntry({ entryId: entry._id });
-                          setEditingId(null);
-                        }}
-                      >
-                        <Trash className="size-4" />
-                      </IconButton>
-                      <Button
-                        size="sm"
-                        aria-label="Save"
-                        onClick={() => saveEdit(entry._id)}
-                      >
-                        <Check weight="bold" className="size-4" />
-                      </Button>
-                    </div>
+                        </Field>
+                        <Field label="Notes" className="flex-2">
+                          <Input
+                            value={editNotes}
+                            onChange={(ev) => setEditNotes(ev.target.value)}
+                          />
+                        </Field>
+                      </div>
+                      <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+                        {MEAS_KEYS.map((key) => (
+                          <Field key={key} label={`${measLabel(key)} (in)`}>
+                            <Input
+                              type="number"
+                              inputMode="decimal"
+                              step="0.1"
+                              min="0"
+                              value={editMeas[key]}
+                              onChange={(ev) =>
+                                setEditMeas((m) => ({
+                                  ...m,
+                                  [key]: ev.target.value,
+                                }))
+                              }
+                            />
+                          </Field>
+                        ))}
+                      </div>
+                      <div className="mt-3 flex items-center justify-between gap-2">
+                        <IconButton
+                          variant="danger"
+                          aria-label="Delete entry"
+                          onClick={() => {
+                            removeEntry({ entryId: entry._id });
+                            setEditingId(null);
+                          }}
+                        >
+                          <Trash className="size-4" />
+                        </IconButton>
+                        <Button
+                          size="sm"
+                          aria-label="Save"
+                          onClick={() => saveEdit(entry._id)}
+                        >
+                          <Check weight="bold" className="size-4" />
+                        </Button>
+                      </div>
+                    </Card>
                   </li>
                 ) : (
                   <li key={entry._id}>
@@ -516,17 +501,17 @@ export default function BodyPage() {
                       <span className="min-w-0">
                         <span className="font-display text-base font-extrabold tabular-nums">
                           {entry.weight}{" "}
-                          <span className="font-mono text-[11px] font-normal text-muted-foreground">
+                          <span className="font-mono text-label-lg font-normal text-muted-foreground">
                             {unit}
                           </span>
                         </span>
                         {entry.notes && (
-                          <span className="block truncate font-mono text-[10px] text-dim">
+                          <span className="block truncate font-mono text-label text-dim">
                             {entry.notes}
                           </span>
                         )}
                       </span>
-                      <span className="font-mono text-[11px] text-bright">
+                      <span className="font-mono text-label-lg text-bright">
                         {shortDate(entry.date)}
                       </span>
                     </button>
@@ -544,9 +529,9 @@ export default function BodyPage() {
 function BodySkeleton() {
   return (
     <div className="flex animate-pulse flex-col gap-6">
-      <div className="rounded-2xl border border-border-strong bg-card p-5">
+      <div className="rounded-card border border-border-strong bg-card p-5">
         <div className="h-4 w-24 rounded bg-muted" />
-        <div className="mt-4 h-44 rounded-xl bg-muted" />
+        <div className="mt-4 h-44 rounded-field bg-muted" />
       </div>
       <div className="flex flex-col gap-2">
         <div className="h-3 w-40 rounded bg-muted" />
@@ -554,7 +539,7 @@ function BodySkeleton() {
           {Array.from({ length: 3 }).map((_, index) => (
             <div
               key={index}
-              className="h-16 rounded-xl border border-border bg-muted"
+              className="h-16 rounded-card border border-border bg-muted"
             />
           ))}
         </div>
@@ -564,7 +549,7 @@ function BodySkeleton() {
         {Array.from({ length: 5 }).map((_, index) => (
           <div
             key={index}
-            className="h-14 rounded-xl border border-border bg-muted"
+            className="h-14 rounded-card border border-border bg-muted"
           />
         ))}
       </div>

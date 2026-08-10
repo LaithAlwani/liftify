@@ -25,6 +25,7 @@ import {
 } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
 import { IconButton } from "@/components/ui/icon-button";
+import { Modal } from "@/components/ui/modal";
 import { PlateCalculator } from "@/components/plate-calculator";
 import { ExercisePicker } from "@/components/exercise-picker";
 import { ExerciseDetailModal } from "@/components/exercise-detail-modal";
@@ -93,21 +94,21 @@ const tileGradientStyle = {
 
 // Repeated Tailwind class strings, pulled out so they stay easy to tweak.
 const collapsedRowStyles =
-  "scroll-mt-24 flex items-center gap-3 rounded-[14px] border border-border bg-card p-4";
+  "scroll-mt-24 flex items-center gap-3 rounded-card border border-border bg-card p-4";
 const activeCardStyles =
-  "scroll-mt-24 overflow-hidden rounded-2xl border border-border-strong bg-card";
+  "scroll-mt-24 overflow-hidden rounded-card border border-border-strong bg-card";
 const stepperStyles =
-  "flex min-w-0 flex-1 items-center justify-between rounded-[10px] border border-border-strong bg-card p-1";
+  "flex min-w-0 flex-1 items-center justify-between rounded-field border border-border-strong bg-card p-1";
 const stepperButtonStyles =
-  "flex size-8 shrink-0 items-center justify-center rounded-lg bg-muted text-bright transition-[filter] hover:brightness-125";
+  "flex size-8 shrink-0 items-center justify-center rounded-field bg-muted text-bright transition-[filter] hover:brightness-125";
 const stepperInputStyles =
   "min-w-0 flex-1 bg-transparent text-center font-display text-2xl font-black tabular-nums focus:outline-none";
 const finishBarStyles =
-  "flex w-full items-center justify-center gap-2.5 rounded-[14px] bg-accent px-4 py-4 " +
+  "flex w-full items-center justify-center gap-2.5 rounded-field bg-accent px-4 py-4 " +
   "font-display text-lg font-black italic tracking-tight text-accent-foreground " +
   "transition-[filter] hover:brightness-105 disabled:pointer-events-none disabled:opacity-50";
 const dashedAddStyles =
-  "flex w-full items-center justify-center gap-2 rounded-[14px] border-[1.5px] border-dashed " +
+  "flex w-full items-center justify-center gap-2 rounded-field border-[1.5px] border-dashed " +
   "border-border-strong px-4 py-4 text-accent transition-colors hover:border-accent hover:bg-accent/5";
 
 export default function Page() {
@@ -736,7 +737,7 @@ function LogWorkout() {
                   />
                   <PencilSimple className="size-4 shrink-0 text-dim" />
                 </div>
-                <p className="mono-label text-[10px] text-muted-foreground">
+                <p className="mono-label text-label text-muted-foreground">
                   {sessionSubline}
                 </p>
               </div>
@@ -814,11 +815,11 @@ function LogWorkout() {
                     >
                       <ExerciseThumb image={meta?.image} size="sm" />
                       <span className="flex min-w-0 flex-1 flex-col">
-                        <span className="truncate font-display text-[15px] font-extrabold">
+                        <span className="truncate font-display text-sm font-extrabold">
                           {entry.name}
                         </span>
                         {tagLine && (
-                          <span className="mono-label text-[10px] text-muted-foreground">
+                          <span className="mono-label text-label text-muted-foreground">
                             {tagLine}
                           </span>
                         )}
@@ -857,10 +858,10 @@ function LogWorkout() {
                       >
                         <ExerciseThumb image={meta?.image} size="sm" />
                         <span className="flex min-w-0 flex-col">
-                          <span className="truncate font-display text-[15px] font-extrabold">
+                          <span className="truncate font-display text-sm font-extrabold">
                             {entry.name}
                           </span>
-                          <span className="mono-label text-[10px] text-muted-foreground">
+                          <span className="mono-label text-label text-muted-foreground">
                             {setCount} {setCount === 1 ? "SET" : "SETS"} ·{" "}
                             {doneCount === setCount
                               ? `${totalReps} REPS`
@@ -902,11 +903,11 @@ function LogWorkout() {
                         aria-expanded
                         className="flex min-w-0 flex-1 flex-col text-left"
                       >
-                        <span className="truncate font-display text-[17px] font-extrabold">
+                        <span className="truncate font-display text-base font-extrabold">
                           {entry.name}
                         </span>
                         {tagLine && (
-                          <span className="mono-label text-[10px] text-muted-foreground">
+                          <span className="mono-label text-label text-muted-foreground">
                             {tagLine}
                           </span>
                         )}
@@ -914,7 +915,7 @@ function LogWorkout() {
                       {best !== undefined && (
                         <span className="flex shrink-0 items-center gap-1.5 rounded-lg border border-spark/40 bg-spark/10 px-2 py-1">
                           <Trophy weight="fill" className="size-3 text-spark" />
-                          <span className="mono-label text-[10px] text-spark-lite">
+                          <span className="mono-label text-label text-spark-lite">
                             BEST {round1(best)}
                           </span>
                         </span>
@@ -949,20 +950,20 @@ function LogWorkout() {
 
                     {/* Column head — labels adapt to the exercise mode. */}
                     <div className="flex items-center gap-3 px-4 pb-1.5 pt-3">
-                      <span className="mono-label w-7 text-[9px] text-dim">
+                      <span className="mono-label w-7 text-label text-dim">
                         SET
                       </span>
-                      <span className="mono-label flex-1 text-center text-[9px] text-dim">
+                      <span className="mono-label flex-1 text-center text-label text-dim">
                         {entry.kind === "dumbbell" ? "REPS / SIDE" : "REPS"}
                       </span>
-                      <span className="mono-label flex-1 text-center text-[9px] text-dim">
+                      <span className="mono-label flex-1 text-center text-label text-dim">
                         {entry.kind === "bodyweight"
                           ? "+ ADDED"
                           : entry.kind === "dumbbell"
                             ? "PER HAND"
                             : "WEIGHT"}
                       </span>
-                      <span className="mono-label w-9 text-right text-[9px] text-dim">
+                      <span className="mono-label w-9 text-right text-label text-dim">
                         DONE
                       </span>
                     </div>
@@ -983,7 +984,7 @@ function LogWorkout() {
                             </span>
                             <span className="flex-1 text-center font-display text-lg font-extrabold tabular-nums">
                               {s.weight || 0}
-                              <span className="font-mono text-[10px] font-normal text-muted-foreground">
+                              <span className="font-mono text-label font-normal text-muted-foreground">
                                 {" "}
                                 {unit}
                               </span>
@@ -1017,7 +1018,7 @@ function LogWorkout() {
                       return (
                         <div
                           key={s.id}
-                          className="mx-3 mb-3 rounded-xl border border-accent bg-surface-3 p-3 shadow-[0_0_0_3px_rgba(215,242,74,0.1)]"
+                          className="mx-3 mb-3 rounded-card border border-accent bg-surface-3 p-3 shadow-[0_0_0_3px_rgba(215,242,74,0.1)]"
                         >
                           <div className="flex items-center gap-2">
                             <span className="w-7 text-center font-display text-base font-black text-accent">
@@ -1111,7 +1112,7 @@ function LogWorkout() {
                               <button
                                 type="button"
                                 onClick={() => repeatLastSet(entry, i)}
-                                className="mono-label flex items-center gap-1.5 rounded-full bg-muted px-2.5 py-1.5 text-[10px] text-bright transition-[filter] hover:brightness-125"
+                                className="mono-label flex items-center gap-1.5 rounded-full bg-muted px-2.5 py-1.5 text-label text-bright transition-[filter] hover:brightness-125"
                               >
                                 <ArrowCounterClockwise
                                   weight="bold"
@@ -1130,7 +1131,7 @@ function LogWorkout() {
                                   type="button"
                                   onClick={() => removeSet(entry.id, s.id)}
                                   aria-label={`Remove set ${i + 1}`}
-                                  className="flex size-7 items-center justify-center rounded-lg text-dim transition-colors hover:bg-muted hover:text-red-500"
+                                  className="flex size-7 items-center justify-center rounded-lg text-dim transition-colors hover:bg-muted hover:text-danger"
                                 >
                                   <X className="size-3.5" />
                                 </button>
@@ -1148,7 +1149,7 @@ function LogWorkout() {
                         onClick={() => removeExercise(entry.id)}
                         aria-label={`Remove ${entry.name}`}
                         title="Remove exercise"
-                        className="flex items-center gap-1.5 rounded-full px-2.5 py-1.5 text-sm font-medium text-dim transition-colors hover:bg-red-500/10 hover:text-red-500"
+                        className="flex items-center gap-1.5 rounded-full px-2.5 py-1.5 text-sm font-medium text-dim transition-colors hover:bg-danger/10 hover:text-danger"
                       >
                         <Trash weight="bold" className="size-4" />
                         Remove
@@ -1156,7 +1157,7 @@ function LogWorkout() {
                       <button
                         type="button"
                         onClick={() => addSet(entry.id)}
-                        className="mono-label flex items-center gap-1.5 rounded-full border border-border-strong px-3.5 py-2 text-[11px] text-accent transition-colors hover:bg-accent/10"
+                        className="mono-label flex items-center gap-1.5 rounded-full border border-border-strong px-3.5 py-2 text-label-lg text-accent transition-colors hover:bg-accent/10"
                       >
                         <Plus weight="bold" className="size-3.5" />
                         ADD SET
@@ -1168,7 +1169,7 @@ function LogWorkout() {
             </section>
           )}
 
-          {error && <p className="text-sm text-red-500">{error}</p>}
+          {error && <p className="text-sm text-danger">{error}</p>}
 
           {/* Add exercise — opens the library picker */}
           <button onClick={() => setPickerOpen(true)} className={dashedAddStyles}>
@@ -1202,7 +1203,7 @@ function LogWorkout() {
                 type="button"
                 onClick={() => setDiscardOpen(true)}
                 disabled={saving}
-                className="flex w-full items-center justify-center gap-1.5 rounded-xl border border-red-500/30 px-4 py-3 text-sm font-medium text-red-500 transition-colors hover:bg-red-500/10 disabled:opacity-50"
+                className="flex w-full items-center justify-center gap-1.5 rounded-field border border-danger/30 px-4 py-3 text-sm font-medium text-danger transition-colors hover:bg-danger/10 disabled:opacity-50"
               >
                 <Trash weight="bold" className="size-4" />
                 Discard workout
@@ -1225,7 +1226,7 @@ function LogWorkout() {
                 ? "Resume timer"
                 : "Pause timer"
           }
-          className="rounded-[14px] border border-border-strong bg-card px-4 py-5 text-center transition-colors enabled:hover:bg-muted"
+          className="rounded-card border border-border-strong bg-card px-4 py-5 text-center transition-colors enabled:hover:bg-muted"
         >
           <span className="mb-2 flex items-center justify-center gap-2">
             <span
@@ -1237,7 +1238,7 @@ function LogWorkout() {
                     : "bg-dim"
               }`}
             />
-            <span className="mono-label text-[10px] text-muted-foreground">
+            <span className="mono-label text-label text-muted-foreground">
               {paused ? "PAUSED" : "SESSION"}
             </span>
           </span>
@@ -1260,7 +1261,7 @@ function LogWorkout() {
         <button
           type="button"
           onClick={() => setPlateOpen(true)}
-          className="mono-label flex w-full items-center justify-center gap-2 rounded-[11px] border border-border-strong bg-card px-4 py-3 text-[11px] text-bright transition-colors hover:bg-muted"
+          className="mono-label flex w-full items-center justify-center gap-2 rounded-field border border-border-strong bg-card px-4 py-3 text-label-lg text-bright transition-colors hover:bg-muted"
         >
           <Barbell className="size-4" />
           PLATE CALC
@@ -1290,7 +1291,7 @@ function LogWorkout() {
               type="button"
               onClick={() => setDiscardOpen(true)}
               disabled={saving}
-              className="flex w-full items-center justify-center gap-1.5 rounded-xl border border-red-500/30 px-4 py-3 text-sm font-medium text-red-500 transition-colors hover:bg-red-500/10 disabled:opacity-50"
+              className="flex w-full items-center justify-center gap-1.5 rounded-xl border border-danger/30 px-4 py-3 text-sm font-medium text-danger transition-colors hover:bg-danger/10 disabled:opacity-50"
             >
               <Trash weight="bold" className="size-4" />
               Discard
@@ -1325,115 +1326,87 @@ function LogWorkout() {
         />
       )}
 
-      {finishPrompt && (
-        <div
-          className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-4 sm:items-center"
-          onClick={() => setFinishPrompt(false)}
-          role="dialog"
-          aria-modal="true"
-        >
-          <div
-            className="w-full max-w-sm rounded-card border border-border bg-card p-6 shadow-xl"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <h2 className="font-display text-xl font-black">Finish your set</h2>
-            <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-              You still have an unfinished set in{" "}
-              <span className="font-medium text-foreground">
-                {pendingNames.join(", ")}
-              </span>
-              .{" "}
-              {pendingNeedsData
-                ? "Add reps (or remove the set), then finish your workout."
-                : "Finish it first, then wrap up your workout."}
-            </p>
-            <div className="mt-6 flex justify-end gap-2">
-              <Button variant="secondary" onClick={() => setFinishPrompt(false)}>
-                Keep going
-              </Button>
-              <Button onClick={finishPendingSets} disabled={pendingNeedsData}>
-                <Check weight="bold" className="size-4" />
-                Finish set
-              </Button>
-            </div>
+      <Modal
+        open={finishPrompt}
+        onClose={() => setFinishPrompt(false)}
+        title="Finish your set"
+        footer={
+          <div className="flex justify-end gap-2">
+            <Button variant="secondary" onClick={() => setFinishPrompt(false)}>
+              Keep going
+            </Button>
+            <Button onClick={finishPendingSets} disabled={pendingNeedsData}>
+              <Check weight="bold" className="size-4" />
+              Finish set
+            </Button>
           </div>
-        </div>
-      )}
+        }
+      >
+        <p className="text-sm leading-relaxed text-muted-foreground">
+          You still have an unfinished set in{" "}
+          <span className="font-medium text-foreground">
+            {pendingNames.join(", ")}
+          </span>
+          .{" "}
+          {pendingNeedsData
+            ? "Add reps (or remove the set), then finish your workout."
+            : "Finish it first, then wrap up your workout."}
+        </p>
+      </Modal>
 
-      {discardOpen && (
-        <div
-          className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-4 sm:items-center"
-          onClick={() => setDiscardOpen(false)}
-          role="dialog"
-          aria-modal="true"
-        >
-          <div
-            className="w-full max-w-sm rounded-card border border-border bg-card p-6 shadow-xl"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-center gap-2 text-red-500">
-              <Trash weight="fill" className="size-5" />
-              <h2 className="font-display text-xl font-black">
-                Discard workout?
-              </h2>
-            </div>
-            <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-              This throws away everything you&apos;ve logged in this session. It
-              won&apos;t be saved to your history. This can&apos;t be undone.
-            </p>
-            <div className="mt-6 flex justify-end gap-2">
-              <Button variant="secondary" onClick={() => setDiscardOpen(false)}>
-                Keep logging
-              </Button>
-              <Button variant="danger" onClick={discard}>
-                <Trash weight="bold" className="size-4" />
-                Discard
-              </Button>
-            </div>
+      <Modal
+        open={discardOpen}
+        onClose={() => setDiscardOpen(false)}
+        title="Discard workout?"
+        footer={
+          <div className="flex justify-end gap-2">
+            <Button variant="secondary" onClick={() => setDiscardOpen(false)}>
+              Keep logging
+            </Button>
+            <Button variant="danger" onClick={discard}>
+              <Trash weight="bold" className="size-4" />
+              Discard
+            </Button>
           </div>
-        </div>
-      )}
+        }
+      >
+        <p className="text-sm leading-relaxed text-muted-foreground">
+          This throws away everything you&apos;ve logged in this session. It
+          won&apos;t be saved to your history. This can&apos;t be undone.
+        </p>
+      </Modal>
 
-      {confirmOpen && (
-        <div
-          className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-4 sm:items-center"
-          onClick={() => !saving && setConfirmOpen(false)}
-          role="dialog"
-          aria-modal="true"
-        >
-          <div
-            className="w-full max-w-sm rounded-card border border-border bg-card p-6 shadow-xl"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <h2 className="font-display text-xl font-black">
-              {isEditing ? "Save changes?" : "Finish workout?"}
-            </h2>
-            <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-              {isEditing ? "Update " : "Save "}
-              &ldquo;{name.trim() || "Workout"}&rdquo; with {entries.length}{" "}
-              exercise{entries.length === 1 ? "" : "s"}
-              {isEditing ? " in" : " to"} your history?
-            </p>
-            {error && <p className="mt-3 text-sm text-red-500">{error}</p>}
-            <div className="mt-6 flex justify-end gap-2">
-              <Button
-                variant="secondary"
-                onClick={() => setConfirmOpen(false)}
-                disabled={saving}
-              >
-                Keep going
-              </Button>
-              <Button onClick={save} disabled={saving}>
-                {saving
-                  ? "Saving…"
-                  : isEditing
-                    ? "Save changes"
-                    : "Finish workout"}
-              </Button>
-            </div>
+      <Modal
+        open={confirmOpen}
+        onClose={() => !saving && setConfirmOpen(false)}
+        title={isEditing ? "Save changes?" : "Finish workout?"}
+        footer={
+          <div className="flex justify-end gap-2">
+            <Button
+              variant="secondary"
+              onClick={() => setConfirmOpen(false)}
+              disabled={saving}
+            >
+              Keep going
+            </Button>
+            <Button onClick={save} disabled={saving}>
+              {saving
+                ? "Saving…"
+                : isEditing
+                  ? "Save changes"
+                  : "Finish workout"}
+            </Button>
           </div>
-        </div>
-      )}
+        }
+      >
+        <p className="text-sm leading-relaxed text-muted-foreground">
+          {isEditing ? "Update " : "Save "}
+          &ldquo;{name.trim() || "Workout"}&rdquo; with {entries.length}{" "}
+          exercise{entries.length === 1 ? "" : "s"}
+          {isEditing ? " in" : " to"} your history?
+        </p>
+        {error && <p className="mt-3 text-sm text-danger">{error}</p>}
+      </Modal>
     </div>
   );
 }
@@ -1457,7 +1430,7 @@ function StartWorkoutHero({
 }) {
   const isMobile = size === "mobile";
   const wrapStyles =
-    "relative flex w-full items-center justify-between overflow-hidden rounded-[20px] " +
+    "relative flex w-full items-center justify-between overflow-hidden rounded-card " +
     "bg-accent text-accent-foreground transition hover:brightness-105 " +
     "disabled:pointer-events-none disabled:opacity-50";
   return (
@@ -1475,7 +1448,7 @@ function StartWorkoutHero({
         }`}
       />
       <span className="relative text-left">
-        <span className="mono-label text-[10px] font-semibold opacity-70">
+        <span className="mono-label text-label font-semibold opacity-70">
           READY WHEN YOU ARE
         </span>
         <span
@@ -1566,7 +1539,7 @@ function ModeControl({
               key={option.label}
               type="button"
               onClick={() => onChange(option.key)}
-              className={`flex-1 rounded-full px-2 py-1.5 font-mono text-[10px] font-semibold uppercase tracking-[0.04em] transition-colors ${
+              className={`flex-1 rounded-full px-2 py-1.5 font-mono text-label font-semibold uppercase tracking-[0.04em] transition-colors ${
                 active
                   ? "bg-accent text-accent-foreground"
                   : "text-muted-foreground hover:text-foreground"
@@ -1578,7 +1551,7 @@ function ModeControl({
         })}
       </div>
       {hint && (
-        <p className="text-[10px] leading-snug text-muted-foreground">{hint}</p>
+        <p className="text-label leading-snug text-muted-foreground">{hint}</p>
       )}
     </div>
   );
@@ -1607,14 +1580,14 @@ function VsBestChip({ delta }: { delta: number | null }) {
     return (
       <span className="flex items-center gap-1 rounded-full bg-spark/10 px-2.5 py-1.5">
         <Lightning weight="fill" className="size-3 text-spark" />
-        <span className="mono-label text-[10px] text-spark-lite">
+        <span className="mono-label text-label text-spark-lite">
           +{rounded} vs BEST
         </span>
       </span>
     );
   }
   return (
-    <span className="mono-label rounded-full bg-muted px-2.5 py-1.5 text-[10px] tabular-nums text-muted-foreground">
+    <span className="mono-label rounded-full bg-muted px-2.5 py-1.5 text-label tabular-nums text-muted-foreground">
       {rounded}
     </span>
   );
@@ -1638,10 +1611,10 @@ function RailStat({
   const labelStyles = spark ? "text-spark-lite" : "text-muted-foreground";
   return (
     <div
-      className={`flex items-center justify-between rounded-[11px] border px-3.5 py-3 ${wrapStyles}`}
+      className={`flex items-center justify-between rounded-field border px-3.5 py-3 ${wrapStyles}`}
     >
       <span
-        className={`mono-label flex items-center gap-1.5 text-[10px] ${labelStyles}`}
+        className={`mono-label flex items-center gap-1.5 text-label ${labelStyles}`}
       >
         {icon}
         {label}
