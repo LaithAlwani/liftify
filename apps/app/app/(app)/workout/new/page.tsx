@@ -40,6 +40,8 @@ import {
 } from "@/lib/prs";
 import { useRest } from "@/components/rest-timer";
 import { Celebration } from "@/components/pr-celebration";
+import { GearRecommendations } from "@/components/gear/gear-recommendations";
+import { Card } from "@/components/ui/card";
 
 type SetRow = { id: string; reps: string; weight: string; done?: boolean };
 type Entry = { id: string; name: string; kind?: Kind; sets: SetRow[] };
@@ -162,6 +164,19 @@ function LogWorkout() {
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [timer, setTimer] = useState<SessionTimer | null>(null);
   const [tick, setTick] = useState(0);
+  // Non-edit finish drops into an in-page completion screen instead of
+  // redirecting home. Holds the new workout id (for gear context), or "done"
+  // if the create somehow returned no id.
+  const [completed, setCompleted] = useState<Id<"workouts"> | null | "done">(
+    null,
+  );
+  // A frozen snapshot of the session stats at save time, so the completion
+  // summary doesn't drift while the (untouched) clock keeps ticking.
+  const [completedStats, setCompletedStats] = useState<{
+    exercises: number;
+    sets: number;
+    durationSec?: number;
+  } | null>(null);
   const rest = useRest();
 
   const unit = me?.units ?? "lb";
@@ -606,18 +621,34 @@ function LogWorkout() {
     try {
       if (isEditing && editId) {
         await update({ workoutId: editId as Id<"workouts">, name, exercises });
+        try {
+          localStorage.removeItem(DRAFT_KEY);
+          localStorage.removeItem(TIMER_KEY);
+        } catch {
+          /* ignore */
+        }
+        // Editing keeps the straight redirect home.
+        router.push("/");
       } else {
         // PRs are celebrated per-set as they happen (see checkSetForPR), so
         // there's no end-of-workout handoff to write here anymore.
-        await create({ name, durationSec, exercises });
+        const newId = await create({ name, durationSec, exercises });
+        try {
+          localStorage.removeItem(DRAFT_KEY);
+          localStorage.removeItem(TIMER_KEY);
+        } catch {
+          /* ignore */
+        }
+        // Freeze the summary, close the confirm modal, and drop into the
+        // in-page completion screen instead of redirecting home.
+        setCompletedStats({
+          exercises: entries.length,
+          sets: entries.reduce((n, e) => n + e.sets.length, 0),
+          durationSec: elapsedSec ?? undefined,
+        });
+        setConfirmOpen(false);
+        setCompleted(newId ?? "done");
       }
-      try {
-        localStorage.removeItem(DRAFT_KEY);
-        localStorage.removeItem(TIMER_KEY);
-      } catch {
-        /* ignore */
-      }
-      router.push("/");
     } catch (e) {
       setError(e instanceof Error ? e.message : "Could not save workout.");
       setSaving(false);
@@ -710,6 +741,79 @@ function LogWorkout() {
 
   // Names already in this workout — drives the ✓ vs + affordance in the picker.
   const addedNames = new Set(entries.map((entry) => entry.name));
+
+  // Finished a brand-new workout: show the celebratory completion screen with
+  // a session summary + contextual gear, instead of the logging UI.
+  if (completed) {
+    const stats = completedStats ?? {
+      exercises: exerciseCount,
+      sets: setsDoneCount,
+      durationSec: elapsedSec ?? undefined,
+    };
+    return (
+      <div className="flex min-h-full flex-col items-center px-5 py-10 sm:px-8">
+        <div className="mx-auto flex w-full max-w-md flex-col gap-6">
+          <div className="flex flex-col items-center gap-3 text-center">
+            <span className="flex size-16 items-center justify-center rounded-full bg-accent/15 text-accent">
+              <FlagCheckered weight="fill" className="size-8" />
+            </span>
+            <h1 className="font-display text-3xl font-black uppercase italic tracking-tight">
+              Workout complete
+            </h1>
+            <p className="mono-label text-label text-muted-foreground">
+              {displayName}
+            </p>
+          </div>
+
+          <Card className="p-4">
+            <div className="grid grid-cols-3 gap-3 text-center">
+              <div className="flex flex-col gap-1">
+                <span className="font-display text-2xl font-black tabular-nums">
+                  {stats.exercises}
+                </span>
+                <span className="mono-label text-label text-muted-foreground">
+                  {stats.exercises === 1 ? "EXERCISE" : "EXERCISES"}
+                </span>
+              </div>
+              <div className="flex flex-col gap-1">
+                <span className="font-display text-2xl font-black tabular-nums">
+                  {stats.sets}
+                </span>
+                <span className="mono-label text-label text-muted-foreground">
+                  {stats.sets === 1 ? "SET" : "SETS"}
+                </span>
+              </div>
+              <div className="flex flex-col gap-1">
+                <span className="font-display text-2xl font-black tabular-nums">
+                  {stats.durationSec ? fmtDuration(stats.durationSec) : "—"}
+                </span>
+                <span className="mono-label text-label text-muted-foreground">
+                  DURATION
+                </span>
+              </div>
+            </div>
+          </Card>
+
+          <GearRecommendations
+            source="workout_complete"
+            workoutId={typeof completed === "string" ? undefined : completed}
+            limit={3}
+            title="Recommended gear"
+          />
+
+          <Button
+            variant="display"
+            size="lg"
+            onClick={() => router.push("/")}
+            className="w-full"
+          >
+            <Check weight="bold" className="size-5" />
+            Done
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex min-h-full flex-col md:flex-row">

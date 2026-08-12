@@ -10,6 +10,19 @@
 export const AMAZON_TAG = process.env.NEXT_PUBLIC_AMAZON_TAG || "";
 export const AMAZON_DOMAIN = process.env.NEXT_PUBLIC_AMAZON_DOMAIN || "amazon.com";
 
+// The single source of truth for turning a link's `url`/`asin` into the real
+// destination (associate tag appended). Reused by the /api/go route and the
+// Gear page's JSON-LD so the logic isn't duplicated.
+export function buildAffiliateUrl(link: {
+  asin?: string | null;
+  url?: string | null;
+}): string | null {
+  if (link.url) return link.url; // full-URL override wins
+  if (!link.asin) return null;
+  const base = `https://www.${AMAZON_DOMAIN}/dp/${link.asin}`;
+  return AMAZON_TAG ? `${base}?tag=${AMAZON_TAG}` : base;
+}
+
 export type ShopProduct = {
   id: string;
   title: string;

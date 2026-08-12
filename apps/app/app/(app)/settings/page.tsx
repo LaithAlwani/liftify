@@ -109,6 +109,20 @@ const UNIT_OPTIONS: SegmentOption<"lb" | "kg">[] = [
   { key: "kg", label: "KG" },
 ];
 
+type FitnessGoal =
+  | "build-muscle"
+  | "cardio"
+  | "home-workout"
+  | "recovery"
+  | "general";
+const GOAL_OPTIONS: { key: FitnessGoal; label: string }[] = [
+  { key: "build-muscle", label: "Build muscle" },
+  { key: "cardio", label: "Cardio" },
+  { key: "home-workout", label: "Home workout" },
+  { key: "recovery", label: "Recovery" },
+  { key: "general", label: "General" },
+];
+
 // Lightweight placeholder shown until the user's profile has loaded, so the
 // preference controls don't flash their default values first.
 function SettingsSkeleton() {
@@ -139,6 +153,14 @@ export default function SettingsPage() {
   // Training prefs — seeded from the server, updated optimistically.
   const [goal, setGoal] = useState(4);
   const [rest, setRest] = useState(90);
+  const [fitnessGoal, setFitnessGoal] = useState<FitnessGoal>("general");
+  useEffect(() => {
+    if (me?.fitnessGoal) setFitnessGoal(me.fitnessGoal);
+  }, [me?.fitnessGoal]);
+  function changeFitnessGoal(v: FitnessGoal) {
+    setFitnessGoal(v);
+    setPrefs({ fitnessGoal: v });
+  }
   const [rem, setRem] = useState({
     remindExercise: true,
     remindWeighIn: true,
@@ -400,6 +422,33 @@ export default function SettingsPage() {
       {/* Training */}
       <Card className={cardBodyStyles}>
         <h3 className={cardTitleStyles}>Training</h3>
+        <div>
+          <div className="min-w-0">
+            <p className={rowLabelStyles}>Fitness goal</p>
+            <p className={rowDescStyles}>We tailor gear &amp; tips to it.</p>
+          </div>
+          <div className="mt-2.5 flex flex-wrap gap-2">
+            {GOAL_OPTIONS.map((option) => {
+              const selected = fitnessGoal === option.key;
+              const base =
+                "rounded-full border px-3.5 py-1.5 text-sm font-medium transition-colors";
+              const state = selected
+                ? "border-accent bg-accent/10 text-foreground"
+                : "border-border bg-surface-3 text-muted-foreground hover:text-foreground";
+              return (
+                <button
+                  key={option.key}
+                  type="button"
+                  onClick={() => changeFitnessGoal(option.key)}
+                  aria-pressed={selected}
+                  className={`${base} ${state}`}
+                >
+                  {option.label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
         <div className={rowStyles}>
           <div className="min-w-0">
             <p className={rowLabelStyles}>Weekly goal</p>

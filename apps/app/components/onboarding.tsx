@@ -31,6 +31,22 @@ const UNIT_OPTIONS: SegmentOption<"lb" | "kg">[] = [
 // "Skip" pseudo-option for the split step — build your own days later.
 const SKIP_SPLIT = "none";
 
+type FitnessGoal =
+  | "build-muscle"
+  | "cardio"
+  | "home-workout"
+  | "recovery"
+  | "general";
+
+// Single-select goal options — we tailor gear + tips to the chosen focus.
+const GOAL_OPTIONS: { key: FitnessGoal; label: string; description: string }[] = [
+  { key: "build-muscle", label: "Build muscle", description: "Hypertrophy & strength focus" },
+  { key: "cardio", label: "Cardio", description: "Conditioning & endurance" },
+  { key: "home-workout", label: "Home workout", description: "Minimal-equipment training" },
+  { key: "recovery", label: "Recovery", description: "Mobility & easing back in" },
+  { key: "general", label: "General", description: "A balanced bit of everything" },
+];
+
 // One entry per step — keeps the header text easy to edit in one place.
 const STEP_META = [
   {
@@ -44,6 +60,10 @@ const STEP_META = [
   {
     title: "Pick your split",
     subtitle: "We'll set up ready-to-go days you can start in one tap.",
+  },
+  {
+    title: "Your goal",
+    subtitle: "We'll tailor gear + tips to it.",
   },
   {
     title: "Weekly goal",
@@ -100,6 +120,7 @@ export function Onboarding({
     () => new Set(["barbell", "dumbbell"]),
   );
   const [split, setSplit] = useState<string>("ppl"); // Push/Pull/Legs by default
+  const [goal, setGoal] = useState<FitnessGoal>("general");
   const [weeklyGoal, setWeeklyGoal] = useState(defaultGoal ?? 4);
   const [bodyWeightInput, setBodyWeightInput] = useState("");
   const [reminderHour, setReminderHour] = useState(10); // default 10 AM
@@ -147,8 +168,10 @@ export function Onboarding({
           await createStarterDays({ split });
         }
       } else if (currentStep === 3) {
-        await setPreferences({ weeklyGoal });
+        await setPreferences({ fitnessGoal: goal });
       } else if (currentStep === 4) {
+        await setPreferences({ weeklyGoal });
+      } else if (currentStep === 5) {
         const startingWeight = parseFloat(bodyWeightInput);
         if (startingWeight > 0) {
           await Promise.all([
@@ -156,7 +179,7 @@ export function Onboarding({
             setPreferences({ bodyWeight: startingWeight }),
           ]);
         }
-      } else if (currentStep === 5) {
+      } else if (currentStep === 6) {
         await setPreferences({ reminderHour, remindExercise, remindWeighIn });
       }
     } catch {
@@ -323,6 +346,20 @@ export function Onboarding({
             )}
 
             {step === 3 && (
+              <div className="flex flex-col gap-2">
+                {GOAL_OPTIONS.map((option) => (
+                  <SplitRow
+                    key={option.key}
+                    label={option.label}
+                    description={option.description}
+                    selected={goal === option.key}
+                    onClick={() => setGoal(option.key)}
+                  />
+                ))}
+              </div>
+            )}
+
+            {step === 4 && (
               <div className="flex items-center justify-between gap-4 rounded-2xl border border-border bg-surface-3 px-4 py-4">
                 <p className="text-sm font-medium">Workouts per week</p>
                 <Stepper
@@ -333,7 +370,7 @@ export function Onboarding({
               </div>
             )}
 
-            {step === 4 && (
+            {step === 5 && (
               <div>
                 <label
                   className="text-sm font-medium"
@@ -359,7 +396,7 @@ export function Onboarding({
               </div>
             )}
 
-            {step === 5 && (
+            {step === 6 && (
               <div className="flex flex-col gap-3">
                 <div className="flex items-center justify-between gap-4 rounded-2xl border border-border bg-surface-3 px-4 py-3">
                   <p className="text-sm font-medium">Reminder time</p>

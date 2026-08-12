@@ -43,6 +43,17 @@ export default defineSchema({
     // Admin access. Absent = normal user. Gate every admin function on this.
     role: v.optional(v.union(v.literal("admin"), v.literal("user"))),
 
+    // Training focus — powers goal-based gear recommendations.
+    fitnessGoal: v.optional(
+      v.union(
+        v.literal("build-muscle"),
+        v.literal("cardio"),
+        v.literal("home-workout"),
+        v.literal("recovery"),
+        v.literal("general"),
+      ),
+    ),
+
     createdAt: v.number(),
   }).index("by_clerk_id", ["clerkId"]),
 
@@ -163,16 +174,22 @@ export default defineSchema({
     .index("by_user", ["userId"])
     .index("by_endpoint", ["endpoint"]),
 
-  // Admin-managed affiliate links that drive the Shop page. Mirrors the old
-  // static ShopProduct shape + admin fields. `active` is the deploy toggle.
+  // Admin-managed gear catalog that drives the Gear page + recommendations.
+  // Field mapping to the product spec: title=name, blurb=description,
+  // url=affiliateUrl, asin=Amazon id. `active` is the deploy toggle.
   affiliateLinks: defineTable({
     title: v.string(),
     category: v.string(),
+    subcategory: v.optional(v.string()),
     blurb: v.optional(v.string()),
     price: v.optional(v.string()),
+    currency: v.optional(v.string()), // e.g. "CAD" (default at read time)
     image: v.optional(v.string()),
     asin: v.optional(v.string()), // Amazon ASIN — tag appended at link time
     url: v.optional(v.string()), // full-URL override (used as-is)
+    retailer: v.optional(v.string()), // "amazon" (default); abstraction for later
+    tags: v.optional(v.array(v.string())), // recommendation match tags
+    priority: v.optional(v.number()), // 0-5 recommendation boost
     active: v.boolean(),
     sortOrder: v.number(),
     clickCount: v.number(),
@@ -181,11 +198,25 @@ export default defineSchema({
     .index("by_active_sort", ["active", "sortOrder"])
     .index("by_category", ["category"]),
 
-  // One row per outbound affiliate click — powers the performance charts.
+  // One row per outbound affiliate click — powers the performance + CTR charts.
   clickEvents: defineTable({
     linkId: v.id("affiliateLinks"),
     at: v.number(),
     userId: v.optional(v.id("users")),
+    source: v.optional(v.string()), // gear_page | workout_complete | exercise | goal | home
+    workoutId: v.optional(v.id("workouts")),
+    exerciseName: v.optional(v.string()),
+  })
+    .index("by_link_at", ["linkId", "at"])
+    .index("by_user", ["userId"]),
+
+  // One row per recommendation actually shown to the user (visible on screen).
+  // Paired with clickEvents to compute CTR.
+  impressionEvents: defineTable({
+    linkId: v.id("affiliateLinks"),
+    at: v.number(),
+    userId: v.optional(v.id("users")),
+    source: v.optional(v.string()),
   }).index("by_link_at", ["linkId", "at"]),
 
   // Singleton app config (one row) — currently the site-wide announcement banner.

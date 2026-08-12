@@ -144,6 +144,15 @@ export const setPreferences = mutation({
     remindExercise: v.optional(v.boolean()),
     remindWeighIn: v.optional(v.boolean()),
     remindRest: v.optional(v.boolean()),
+    fitnessGoal: v.optional(
+      v.union(
+        v.literal("build-muscle"),
+        v.literal("cardio"),
+        v.literal("home-workout"),
+        v.literal("recovery"),
+        v.literal("general"),
+      ),
+    ),
   },
   handler: async (
     ctx,
@@ -155,6 +164,7 @@ export const setPreferences = mutation({
       remindExercise,
       remindWeighIn,
       remindRest,
+      fitnessGoal,
     },
   ) => {
     const identity = await ctx.auth.getUserIdentity();
@@ -172,6 +182,12 @@ export const setPreferences = mutation({
       remindExercise?: boolean;
       remindWeighIn?: boolean;
       remindRest?: boolean;
+      fitnessGoal?:
+        | "build-muscle"
+        | "cardio"
+        | "home-workout"
+        | "recovery"
+        | "general";
     } = {};
     if (weeklyGoal !== undefined) {
       patch.weeklyGoal = Math.min(14, Math.max(1, Math.round(weeklyGoal)));
@@ -188,6 +204,7 @@ export const setPreferences = mutation({
     if (remindExercise !== undefined) patch.remindExercise = remindExercise;
     if (remindWeighIn !== undefined) patch.remindWeighIn = remindWeighIn;
     if (remindRest !== undefined) patch.remindRest = remindRest;
+    if (fitnessGoal !== undefined) patch.fitnessGoal = fitnessGoal;
     await ctx.db.patch(user._id, patch);
   },
 });

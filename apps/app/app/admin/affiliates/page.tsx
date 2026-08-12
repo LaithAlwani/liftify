@@ -27,8 +27,13 @@ const VOLT = "#d7f24a";
 type LinkForm = {
   title: string;
   category: string;
+  subcategory: string;
   blurb: string;
   price: string;
+  currency: string;
+  retailer: string;
+  priority: string;
+  tags: string;
   image: string;
   asin: string;
   url: string;
@@ -37,8 +42,13 @@ type LinkForm = {
 const EMPTY_FORM: LinkForm = {
   title: "",
   category: "",
+  subcategory: "",
   blurb: "",
   price: "",
+  currency: "CAD",
+  retailer: "amazon",
+  priority: "0",
+  tags: "",
   image: "",
   asin: "",
   url: "",
@@ -47,6 +57,8 @@ const EMPTY_FORM: LinkForm = {
 export default function AdminAffiliates() {
   const links = useQuery(api.affiliate.listAll, {});
   const clicks = useQuery(api.affiliate.clicksSeries, { days: 30 });
+  const productStats = useQuery(api.affiliate.productStats, {});
+  const sourceStats = useQuery(api.affiliate.sourceStats, {});
   const create = useMutation(api.affiliate.create);
   const update = useMutation(api.affiliate.update);
   const setActive = useMutation(api.affiliate.setActive);
@@ -79,8 +91,13 @@ export default function AdminAffiliates() {
     setForm({
       title: link.title,
       category: link.category,
+      subcategory: link.subcategory ?? "",
       blurb: link.blurb ?? "",
-      price: link.price ?? "",
+      price: link.price != null ? String(link.price) : "",
+      currency: link.currency ?? "CAD",
+      retailer: link.retailer ?? "amazon",
+      priority: link.priority != null ? String(link.priority) : "0",
+      tags: (link.tags ?? []).join(", "),
       image: link.image ?? "",
       asin: link.asin ?? "",
       url: link.url ?? "",
@@ -94,11 +111,24 @@ export default function AdminAffiliates() {
       return;
     }
     setSaving(true);
+    const priorityNum = Number(form.priority.trim());
+    const tags = form.tags
+      .split(",")
+      .map((t) => t.trim())
+      .filter(Boolean);
     const payload = {
       title: form.title.trim(),
       category: form.category.trim(),
+      subcategory: form.subcategory.trim() || undefined,
       blurb: form.blurb.trim() || undefined,
       price: form.price.trim() || undefined,
+      currency: form.currency.trim() || undefined,
+      retailer: form.retailer.trim() || undefined,
+      priority:
+        form.priority.trim() && !Number.isNaN(priorityNum)
+          ? priorityNum
+          : undefined,
+      tags: tags.length ? tags : undefined,
       image: form.image.trim() || undefined,
       asin: form.asin.trim() || undefined,
       url: form.url.trim() || undefined,
@@ -185,6 +215,104 @@ export default function AdminAffiliates() {
             </AreaChart>
           </ResponsiveContainer>
         </div>
+      </Card>
+
+      {/* Per-product analytics */}
+      <Card className="p-4 lg:p-5">
+        <div className="mb-3 flex items-center justify-between">
+          <span className="mono-label text-label text-muted-foreground">
+            Per-product performance
+          </span>
+        </div>
+        {productStats === undefined ? (
+          <div className="flex flex-col gap-2">
+            {Array.from({ length: 3 }).map((_, i) => (
+              <div key={i} className="h-10 animate-pulse rounded-card bg-muted" />
+            ))}
+          </div>
+        ) : productStats.length === 0 ? (
+          <p className="py-2 text-sm text-muted-foreground">No data yet.</p>
+        ) : (
+          <div className="flex flex-col">
+            <div className="hidden grid-cols-[1fr_auto_auto_auto] gap-3 border-b border-border pb-2 sm:grid">
+              <span className="mono-label text-label text-dim">Product</span>
+              <span className="mono-label w-16 text-right text-label text-dim">
+                Impr.
+              </span>
+              <span className="mono-label w-16 text-right text-label text-dim">
+                Clicks
+              </span>
+              <span className="mono-label w-16 text-right text-label text-dim">
+                CTR
+              </span>
+            </div>
+            {productStats.map((p) => (
+              <div
+                key={p._id}
+                className="flex flex-col gap-1 border-b border-border/60 py-2.5 last:border-0 sm:grid sm:grid-cols-[1fr_auto_auto_auto] sm:items-center sm:gap-3"
+              >
+                <span className="flex min-w-0 items-center gap-2 text-sm font-medium">
+                  <span className="truncate">{p.title}</span>
+                  {!p.active && <Badge tone="neutral">off</Badge>}
+                </span>
+                <div className="flex items-center gap-4 font-mono text-label text-dim sm:contents">
+                  <span className="sm:w-16 sm:text-right sm:text-sm sm:text-foreground">
+                    <span className="sm:hidden">Impr </span>
+                    {p.impressions}
+                  </span>
+                  <span className="sm:w-16 sm:text-right sm:text-sm sm:text-foreground">
+                    <span className="sm:hidden">Clicks </span>
+                    {p.clicks}
+                  </span>
+                  <span className="sm:w-16 sm:text-right sm:text-sm sm:text-foreground">
+                    <span className="sm:hidden">CTR </span>
+                    {p.impressions === 0
+                      ? "—"
+                      : `${(p.ctr * 100).toFixed(1)}%`}
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </Card>
+
+      {/* Source breakdown */}
+      <Card className="p-4 lg:p-5">
+        <div className="mb-3 flex items-center justify-between">
+          <span className="mono-label text-label text-muted-foreground">
+            Traffic sources
+          </span>
+        </div>
+        {sourceStats === undefined ? (
+          <div className="flex flex-col gap-2">
+            {Array.from({ length: 2 }).map((_, i) => (
+              <div key={i} className="h-8 animate-pulse rounded-card bg-muted" />
+            ))}
+          </div>
+        ) : sourceStats.length === 0 ? (
+          <p className="py-2 text-sm text-muted-foreground">No data yet.</p>
+        ) : (
+          <div className="flex flex-col">
+            {sourceStats.map((s) => (
+              <div
+                key={s.source}
+                className="flex items-center justify-between gap-3 border-b border-border/60 py-2.5 last:border-0"
+              >
+                <span className="truncate text-sm font-medium">{s.source}</span>
+                <div className="flex items-center gap-4 font-mono text-label text-dim">
+                  <span>{s.impressions} impr</span>
+                  <span>{s.clicks} clicks</span>
+                  <span className="text-foreground">
+                    {s.impressions === 0
+                      ? "—"
+                      : `${(s.ctr * 100).toFixed(1)}%`}
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </Card>
 
       {links === undefined ? (
@@ -285,10 +413,70 @@ export default function AdminAffiliates() {
               placeholder="Support"
             />
           </Field>
+          <Field label="Subcategory" helper="Optional finer grouping.">
+            <Input
+              value={form.subcategory}
+              onChange={(e) =>
+                setForm({ ...form, subcategory: e.target.value })
+              }
+              placeholder="Belts"
+            />
+          </Field>
           <Field label="Blurb" helper="Optional one-liner shown on the card.">
             <Input
               value={form.blurb}
               onChange={(e) => setForm({ ...form, blurb: e.target.value })}
+            />
+          </Field>
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Price">
+              <Input
+                value={form.price}
+                onChange={(e) => setForm({ ...form, price: e.target.value })}
+                placeholder="49.99"
+              />
+            </Field>
+            <Field label="Currency">
+              <Input
+                value={form.currency}
+                onChange={(e) =>
+                  setForm({ ...form, currency: e.target.value })
+                }
+                placeholder="CAD"
+              />
+            </Field>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Retailer">
+              <select
+                value={form.retailer}
+                onChange={(e) =>
+                  setForm({ ...form, retailer: e.target.value })
+                }
+                className="w-full rounded-field border border-border bg-surface-3 px-3.5 py-2.5 text-sm text-foreground transition-colors focus-visible:border-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
+              >
+                <option value="amazon">Amazon</option>
+                <option value="other">Other</option>
+              </select>
+            </Field>
+            <Field label="Priority" helper="0–5, higher shows first.">
+              <Input
+                type="number"
+                min={0}
+                max={5}
+                value={form.priority}
+                onChange={(e) =>
+                  setForm({ ...form, priority: e.target.value })
+                }
+                placeholder="0"
+              />
+            </Field>
+          </div>
+          <Field label="Tags" helper="Comma-separated, e.g. beginner, home gym.">
+            <Input
+              value={form.tags}
+              onChange={(e) => setForm({ ...form, tags: e.target.value })}
+              placeholder="beginner, home gym"
             />
           </Field>
           <Field

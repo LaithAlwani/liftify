@@ -22,6 +22,7 @@ import { StatCard } from "@/components/ui/stat-card";
 import { Card } from "@/components/ui/card";
 import { Modal } from "@/components/ui/modal";
 import { Input } from "@/components/ui/field";
+import { GearRecommendations } from "@/components/gear/gear-recommendations";
 
 function formatDate(ms: number) {
   return new Date(ms).toLocaleDateString(undefined, {
@@ -242,6 +243,13 @@ export default function WorkoutDetailPage() {
                 </li>
               ))}
             </ul>
+            <GearRecommendations
+              source="exercise"
+              exerciseName={exercise.name}
+              limit={1}
+              compact
+              className="mt-2"
+            />
           </Card>
         ))}
       </div>

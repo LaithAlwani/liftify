@@ -116,14 +116,14 @@ function DonateButton({ className = "" }: { className?: string }) {
   );
 }
 
-// Shop is a top-bar link (passive monetization), not a primary tab. Lights up
-// volt when the user is on the Shop page.
-function ShopButton({ active }: { active: boolean }) {
+// Gear is a top-bar link (passive monetization + recommendations), not a
+// primary tab. Lights up volt when the user is on the Gear page.
+function GearButton({ active }: { active: boolean }) {
   return (
     <Link
-      href="/shop"
-      aria-label="Shop"
-      title="Shop"
+      href="/gear"
+      aria-label="Gear"
+      title="Gear"
       aria-current={active ? "page" : undefined}
       className={`flex size-9 items-center justify-center rounded-full transition-colors hover:bg-accent/10 hover:text-accent ${
         active ? "text-accent" : "text-muted-foreground"
@@ -162,7 +162,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   }, [isAuthenticated, ensureUser, setTimezone]);
 
   const settingsActive = pathname.startsWith("/settings");
-  const shopActive = pathname.startsWith("/shop");
+  const gearActive = pathname.startsWith("/gear");
 
   // The user's photo (or their initial) — reused in the sidebar row and the
   // mobile top bar.
@@ -252,7 +252,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         {/* Desktop utility icons — pinned to the top-right of the viewport in a
             solid pill so they never bleed over page content beneath them. */}
         <div className="fixed right-6 top-3 z-40 hidden items-center gap-0.5 rounded-full border border-border bg-surface-2/95 px-1.5 py-1 shadow-card backdrop-blur md:flex">
-          <ShopButton active={shopActive} />
+          <GearButton active={gearActive} />
           <DonateButton />
           <NotificationBell />
         </div>
@@ -261,7 +261,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         <header className="sticky top-0 z-40 flex items-center justify-between border-b border-border bg-surface-2 px-4 pb-2.5 pt-[max(0.625rem,env(safe-area-inset-top))] md:hidden">
           <LiftifyWordmark size="sm" />
           <div className="flex items-center gap-0.5">
-            <ShopButton active={shopActive} />
+            <GearButton active={gearActive} />
             <DonateButton />
             <NotificationBell />
             <Link
